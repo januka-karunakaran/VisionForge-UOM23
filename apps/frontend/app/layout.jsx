@@ -1,4 +1,5 @@
 /* eslint-disable react/prop-types */
+import "../styles/globals.css";
 
 export const metadata = {
   title: "CRMS ",

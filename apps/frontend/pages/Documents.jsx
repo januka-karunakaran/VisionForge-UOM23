@@ -2,10 +2,12 @@ import React, { useEffect, useMemo, useState } from "react";
 import {
   getClientProjects,
   getClientProjectPrd,
+  getCompanyProjects,
+  fetchPrds,
   downloadDocument,
 } from "../services/api";
 
-const Documents = () => {
+const Documents = ({ user = null, role = null }) => {
   const [projects, setProjects] = useState([]);
   const [selectedProjectId, setSelectedProjectId] = useState("");
   const [prdData, setPrdData] = useState(null);
@@ -21,7 +23,17 @@ const Documents = () => {
     try {
       setLoadingProjects(true);
       setError("");
-      const data = await getClientProjects();
+      let data = [];
+
+      if (String(role || "").toUpperCase() === "COMPANY") {
+        // Company users should fetch company projects
+        const companyId = user?.id || localStorage.getItem("companyId");
+        data = await getCompanyProjects(companyId);
+      } else {
+        // Default to client projects
+        data = await getClientProjects();
+      }
+
       setProjects(Array.isArray(data) ? data : []);
     } catch (err) {
       console.error(err);
@@ -40,9 +52,20 @@ const Documents = () => {
 
     try {
       setLoadingPrd(true);
-      const data = await getClientProjectPrd(projectId);
-      if (data) setPrdData(data);
-      else setError("No PRD available for this project yet");
+      if (String(role || "").toUpperCase() === "COMPANY") {
+        // Company users: fetch PRDs list and pick the first (or show none)
+        const list = await fetchPrds(projectId);
+        if (Array.isArray(list) && list.length > 0) {
+          setPrdData(list[0]);
+        } else {
+          setError("No PRD available for this project yet");
+        }
+      } else {
+        // Client users: single PRD endpoint
+        const data = await getClientProjectPrd(projectId);
+        if (data) setPrdData(data);
+        else setError("No PRD available for this project yet");
+      }
     } catch (err) {
       console.error(err);
       setError(err.message || "Failed to fetch PRD");
@@ -59,7 +82,7 @@ const Documents = () => {
 
     try {
       setError("");
-      const { blob, fileName: contentDisposition } = await downloadDocument(
+      const { blob, fileName: contentDisposition, contentType } = await downloadDocument(
         prdData.id
       );
 
@@ -67,29 +90,35 @@ const Documents = () => {
         throw new Error("Received empty file from server");
       }
 
-      let downloadFileName = prdData.fileName || "prd-document";
+      // Determine filename preference: server-provided -> prdData.fileName -> fallback
+      let downloadFileName = contentDisposition || prdData.fileName || "prd-document";
 
-      if (contentDisposition) {
-        // Try to match filename="..."
-        const filenameMatch = contentDisposition.match(/filename="?([^";\n]+)"?/i);
-        if (filenameMatch && filenameMatch[1]) {
-          downloadFileName = filenameMatch[1];
+      // If server returned a decoded filename (our API tries to), use it directly.
+      // Ensure proper extension based on content type when missing.
+      if (!downloadFileName.includes(".")) {
+        if (contentType && contentType.includes("pdf")) {
+          downloadFileName += ".pdf";
+        } else if (contentType && contentType.startsWith("text/")) {
+          downloadFileName += ".txt";
         } else {
-          // Try to match filename*=UTF-8''...
-          const filenameStarMatch = contentDisposition.match(
-            /filename\*=UTF-8''([^;\n]+)/i
-          );
-          if (filenameStarMatch && filenameStarMatch[1]) {
-            downloadFileName = decodeURIComponent(filenameStarMatch[1]);
-          }
+          downloadFileName += ".pdf";
         }
       }
 
-      if (!downloadFileName.includes(".")) {
-        downloadFileName += ".pdf";
+      let finalBlob = blob;
+
+      // If the server returned text content but it appears as a blob with unknown charset,
+      // read it as text (UTF-8) and re-create a utf-8 text blob so characters render correctly.
+      try {
+        if (contentType && contentType.startsWith("text/")) {
+          const text = await blob.text();
+          finalBlob = new Blob([text], { type: "text/plain;charset=utf-8" });
+        }
+      } catch (e) {
+        console.warn("Failed to normalize text blob encoding:", e);
       }
 
-      const url = window.URL.createObjectURL(blob);
+      const url = window.URL.createObjectURL(finalBlob);
       const link = document.createElement("a");
 
       link.href = url;

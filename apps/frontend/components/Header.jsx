@@ -9,6 +9,7 @@ const Header = ({
   onToggleNotifications,
   onNavigateSettings,
   onLogout,
+  onProfileClick,
   user,
   role,
 }) => {
@@ -81,9 +82,9 @@ const Header = ({
 
           {/* USER PROFILE */}
           <button
-            onClick={onLogout}
+            onClick={onProfileClick}
             className="flex items-center gap-3 rounded-2xl border border-slate-200 bg-white px-3 py-2 shadow-sm transition hover:shadow-lg hover:-translate-y-0.5"
-            title="Sign Out"
+            title="Profile"
           >
             <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-indigo-500 to-purple-500 text-white font-bold">
               {user?.name?.charAt(0) || "U"}
@@ -93,9 +94,7 @@ const Header = ({
               <span className="text-sm font-bold text-slate-900">
                 {user?.name || "User"}
               </span>
-              <span className="text-xs text-slate-400">
-                {role}
-              </span>
+              <span className="text-xs text-slate-400">{role}</span>
             </div>
           </button>
 

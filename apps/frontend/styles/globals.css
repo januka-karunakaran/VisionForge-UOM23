@@ -30,7 +30,7 @@ select {
 }
 
 ::-webkit-scrollbar-track {
-  background: #e2e8f0;
+  background: transparent;
 }
 
 ::-webkit-scrollbar-thumb {
@@ -40,4 +40,27 @@ select {
 
 ::-webkit-scrollbar-thumb:hover {
   background: #64748b;
+}
+
+.scrollbar-dark {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(255, 255, 255, 0.2) transparent;
+}
+
+.scrollbar-dark::-webkit-scrollbar {
+  width: 6px !important;
+  height: 6px !important;
+}
+
+.scrollbar-dark::-webkit-scrollbar-track {
+  background: transparent !important;
+}
+
+.scrollbar-dark::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.2) !important;
+  border-radius: 999px !important;
+}
+
+.scrollbar-dark::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.4) !important;
 }

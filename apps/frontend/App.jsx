@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useState } from "react";
 import Sidebar from "./components/Sidebar";
 import Header from "./components/Header";
+import NotificationPanel from "./components/NotificationPanel";
 
 import Dashboard from "./pages/Dashboard";
 import Projects from "./pages/Projects";
@@ -318,6 +319,7 @@ const App = () => {
           onToggleNotifications={() => setShowNotifications(!showNotifications)}
           onNavigateSettings={() => safeSetActivePage("settings")}
           onLogout={handleLogout}
+          onProfileClick={() => setShowNotifications(true)}
           user={user}
           role={currentRole}
         />
@@ -343,44 +345,12 @@ const App = () => {
         </main>
 
         {showNotifications && (
-          <>
-            <div
-              className="fixed inset-0 z-40 bg-slate-950/20 backdrop-blur-sm"
-              onClick={() => setShowNotifications(false)}
-            />
-
-            <div className="absolute right-8 top-24 z-50 flex w-[26rem] max-w-[calc(100vw-2rem)] flex-col gap-4">
-              {currentRole === ROLE.CLIENT ? (
-                <>
-                  <NotificationCard
-                    title="Proposal Received"
-                    message="A new project proposal has been sent by the company for your review."
-                    time="10 minutes ago"
-                    isNew
-                  />
-                  <NotificationCard
-                    title="PRD Uploaded"
-                    message="A PRD document is now available for one of your projects."
-                    time="2 hours ago"
-                  />
-                </>
-              ) : (
-                <>
-                  <NotificationCard
-                    title="Proposal Accepted"
-                    message="A client has accepted your proposal. You can now proceed with the PRD."
-                    time="30 minutes ago"
-                    isNew
-                  />
-                  <NotificationCard
-                    title="New Change Request"
-                    message="A client has submitted a new change request for review."
-                    time="3 hours ago"
-                  />
-                </>
-              )}
-            </div>
-          </>
+          <NotificationPanel
+            isOpen={showNotifications}
+            notifications={[]}
+            onClose={() => setShowNotifications(false)}
+            onNotificationClick={() => setShowNotifications(false)}
+          />
         )}
       </div>
     </div>

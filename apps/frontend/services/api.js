@@ -99,6 +99,7 @@ async function request(path, options = {}) {
 
       if (!response.ok) {
         let message = `HTTP ${response.status}`;
+        const attemptedUrl = `${candidateBase}${path}`;
 
         try {
           const errorData = await parseResponse(response);
@@ -112,7 +113,7 @@ async function request(path, options = {}) {
           console.error("Error parsing error response:", e);
         }
 
-        throw new Error(message);
+        throw new Error(`${message} (url: ${attemptedUrl})`);
       }
 
       return await parseResponse(response);
@@ -145,7 +146,12 @@ async function request(path, options = {}) {
     return [];
   }
 
-  throw lastError || new Error(`Request failed for ${path}`);
+  // Surface the last error with the path for easier debugging.
+  if (lastError && lastError instanceof Error) {
+    throw new Error(`${lastError.message} (path: ${path})`);
+  }
+
+  throw new Error(`Request failed for ${path}`);
 }
 
 function getStoredUser() {
@@ -482,9 +488,37 @@ export async function downloadDocument(documentId) {
       throw new Error("Download failed: Received empty file");
     }
 
+    const contentDisposition = response.headers.get("content-disposition") || "";
+    const contentType = response.headers.get("content-type") || "";
+
+    function parseContentDisposition(header) {
+      if (!header) return null;
+
+      // RFC 5987: filename*=UTF-8''%E4%BD%A0%E5%A5%BD.txt
+      const filenameStarMatch = header.match(/filename\*=UTF-8''([^;\n]+)/i);
+      if (filenameStarMatch && filenameStarMatch[1]) {
+        try {
+          return decodeURIComponent(filenameStarMatch[1].trim());
+        } catch (e) {
+          // fallback to raw value
+          return filenameStarMatch[1].trim();
+        }
+      }
+
+      // Regular filename="..." or filename=...
+      const filenameMatch = header.match(/filename\s*=\s*"?([^";\n]+)"?/i);
+      if (filenameMatch && filenameMatch[1]) {
+        return filenameMatch[1].trim();
+      }
+
+      return null;
+    }
+
     return {
       blob,
-      fileName: response.headers.get("content-disposition"),
+      fileName: parseContentDisposition(contentDisposition) || null,
+      contentType,
+      contentDispositionHeader: contentDisposition,
     };
   } catch (err) {
     console.error(`Download failed for document ${documentId}:`, err);
@@ -623,9 +657,34 @@ export async function downloadCompanyChangeRequest(changeRequestId) {
     throw new Error("Download failed: Received empty file");
   }
 
+  const contentDisposition = response.headers.get("content-disposition") || "";
+  const contentType = response.headers.get("content-type") || "";
+
+  function parseContentDisposition(header) {
+    if (!header) return null;
+
+    const filenameStarMatch = header.match(/filename\*=UTF-8''([^;\n]+)/i);
+    if (filenameStarMatch && filenameStarMatch[1]) {
+      try {
+        return decodeURIComponent(filenameStarMatch[1].trim());
+      } catch (e) {
+        return filenameStarMatch[1].trim();
+      }
+    }
+
+    const filenameMatch = header.match(/filename\s*=\s*"?([^";\n]+)"?/i);
+    if (filenameMatch && filenameMatch[1]) {
+      return filenameMatch[1].trim();
+    }
+
+    return null;
+  }
+
   return {
     blob,
-    fileName: response.headers.get("content-disposition"),
+    fileName: parseContentDisposition(contentDisposition) || null,
+    contentType,
+    contentDispositionHeader: contentDisposition,
   };
 }
 

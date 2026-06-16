@@ -39,7 +39,8 @@ const Kanban = ({ readOnly = false }) => {
       const data = await getClientProjects();
       setProjects(Array.isArray(data) ? data : []);
     } catch (err) {
-      setError("Projects could not be loaded.");
+      console.error("Error loading projects:", err);
+      setError(err?.message || "Projects could not be loaded.");
     } finally {
       setLoadingProjects(false);
     }
@@ -58,7 +59,8 @@ const Kanban = ({ readOnly = false }) => {
       const data = await getClientProjectKanban(projectId);
       setBoard(data);
     } catch (err) {
-      setError("Kanban board could not be loaded.");
+      console.error("Error loading kanban board:", err);
+      setError(err?.message || "Kanban board could not be loaded.");
     } finally {
       setLoadingBoard(false);
     }
