@@ -45,6 +45,76 @@ const createEmptyForm = () => ({
 
 const hasText = (value) => String(value || "").trim().length > 0;
 
+const editorFieldClass = (value, extraClassName = "") =>
+  cn(
+    "prd-editor-input",
+    !hasText(value) && "prd-editor-input--empty",
+    extraClassName
+  );
+
+const countFilledValues = (values) => values.filter(hasText).length;
+
+function escapeHtml(str) {
+  return String(str)
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;");
+}
+
+function renderMarkdown(text) {
+  if (!text) return "";
+  const escaped = escapeHtml(text);
+  const lines = escaped.split(/\r?\n/);
+  let html = "";
+  let inList = false;
+  let para = "";
+
+  for (let rawLine of lines) {
+    const line = rawLine.trim();
+
+    if (line.startsWith("- ")) {
+      if (para) {
+        html += `<p>${para}</p>`;
+        para = "";
+      }
+
+      if (!inList) {
+        inList = true;
+        html += "<ul>";
+      }
+
+      const item = line.slice(2);
+      html += `<li>${item}</li>`;
+    } else if (line === "") {
+      if (para) {
+        html += `<p>${para}</p>`;
+        para = "";
+      }
+      if (inList) {
+        html += "</ul>";
+        inList = false;
+      }
+    } else {
+      if (inList) {
+        html += "</ul>";
+        inList = false;
+      }
+      para = para ? para + " " + line : line;
+    }
+  }
+
+  if (inList) html += "</ul>";
+  if (para) html += `<p>${para}</p>`;
+
+  // simple inline formatting: **bold** and *italic*
+  html = html.replace(/\*\*(.+?)\*\*/g, "<strong>$1</strong>");
+  html = html.replace(/\*(.+?)\*/g, "<em>$1</em>");
+
+  return html;
+}
+
 const getProjectId = (project) => project?.id || project?._id || "";
 
 function validateForm(form) {
@@ -591,6 +661,104 @@ export default function CompanyPrdRepositorySection() {
     );
   };
 
+  const editorCompletion = useMemo(() => {
+    const coreFields = [
+      form.projectId,
+      form.projectName,
+      form.author,
+      form.dateSubmitted,
+      form.purpose,
+      form.problemToSolve,
+      form.projectGoal,
+      form.inScope,
+      form.outOfScope,
+      form.mainFeatures,
+      form.functionalRequirement,
+      form.nonFunctionalRequirement,
+      form.userRoles,
+      form.risksDependencies,
+    ];
+
+    const stakeholderFields = form.stakeholders.flatMap((item) => [
+      item.role,
+      item.name,
+      item.responsibility,
+    ]);
+
+    const milestoneFields = form.milestones.flatMap((item) => [
+      item.phase,
+      item.task,
+      item.duration,
+      item.responsibility,
+    ]);
+
+    const total =
+      coreFields.length + stakeholderFields.length + milestoneFields.length;
+    const completed =
+      countFilledValues(coreFields) +
+      countFilledValues(stakeholderFields) +
+      countFilledValues(milestoneFields);
+
+    return {
+      completed,
+      total,
+      percent: total > 0 ? Math.round((completed / total) * 100) : 0,
+    };
+  }, [form]);
+
+  const documentSections = useMemo(
+    () => [
+      {
+        label: "Basic Information",
+        state:
+          form.projectId && form.projectName && form.author && form.dateSubmitted
+            ? "complete"
+            : "missing",
+      },
+      {
+        label: "Project Overview",
+        state:
+          form.purpose && form.problemToSolve && form.projectGoal
+            ? "complete"
+            : "missing",
+      },
+      {
+        label: "Key Stakeholders",
+        state: form.stakeholders.every(
+          (item) => item.role && item.name && item.responsibility
+        )
+          ? "complete"
+          : "missing",
+      },
+      {
+        label: "Scope",
+        state: form.inScope && form.outOfScope ? "complete" : "missing",
+      },
+      {
+        label: "Requirements",
+        state:
+          form.mainFeatures &&
+          form.functionalRequirement &&
+          form.nonFunctionalRequirement
+            ? "complete"
+            : "missing",
+      },
+      {
+        label: "Roles and Risks",
+        state: form.userRoles && form.risksDependencies ? "complete" : "missing",
+      },
+      {
+        label: "Timeline",
+        state: form.milestones.every(
+          (item) => item.phase && item.task && item.duration && item.responsibility
+        )
+          ? "complete"
+          : "missing",
+      },
+    ],
+    [form]
+  );
+
   return (
     <>
       <PrdRepositorySectionView
@@ -630,14 +798,94 @@ export default function CompanyPrdRepositorySection() {
             </div>
 
             <div className="space-y-6 overflow-y-auto px-6 py-6">
-              <section className="space-y-3">
-                <h3 className="border-b border-slate-400 pb-2 text-lg font-bold text-slate-800">
+              <div className="rounded-3xl border border-slate-200 bg-gradient-to-br from-white to-[#F7F8FC] p-3 shadow-sm">
+                <div className="flex flex-wrap items-start justify-between gap-3">
+                  <div>
+                    <p className="text-xs font-bold uppercase tracking-[0.18em] text-[#1A1A40]">
+                      Document editor
+                    </p>
+                    <h3 className="mt-1 text-base font-semibold text-slate-900">
+                      Create a structured PRD document.
+                    </h3>
+                    <p className="mt-1 text-sm text-slate-500">
+                      The form behaves like a document canvas with section guidance.
+                    </p>
+                  </div>
+
+                  <div className="min-w-[160px] text-right">
+                    <p className="text-sm font-bold text-slate-900">
+                      {editorCompletion.percent}% ready
+                    </p>
+                    <p className="text-xs text-slate-500">
+                      {editorCompletion.completed} of {editorCompletion.total}{" "}
+                      fields filled
+                    </p>
+                  </div>
+                </div>
+
+                <div className="mt-2 h-2 overflow-hidden rounded-full bg-slate-200">
+                  <div
+                    className="h-full rounded-full bg-gradient-to-r from-[#1A1A40] to-[#5D57A3] transition-all"
+                    style={{ width: `${editorCompletion.percent}%` }}
+                  />
+                </div>
+
+                <div className="mt-3 grid gap-3 lg:grid-cols-[1.2fr_0.8fr]">
+                  <div className="rounded-2xl border border-slate-200 bg-white p-2">
+                    <p className="text-xs font-bold uppercase tracking-[0.18em] text-slate-500">
+                      Writing guidance
+                    </p>
+                    <div className="mt-2 flex flex-wrap gap-2 text-xs font-medium text-slate-600">
+                      <span className="rounded-full bg-amber-50 px-3 py-1 text-amber-700">
+                        Empty fields are highlighted
+                      </span>
+                      <span className="rounded-full bg-slate-100 px-3 py-1">
+                        Use short sentences in long fields
+                      </span>
+                      <span className="rounded-full bg-slate-100 px-3 py-1">
+                        Keep items specific and measurable
+                      </span>
+                    </div>
+                  </div>
+
+                  <div className="rounded-2xl border border-slate-200 bg-white p-2 relative">
+                    <p className="text-xs font-bold uppercase tracking-[0.18em] text-slate-500">
+                      Document outline
+                    </p>
+                    <div className="mt-2 flex flex-col gap-2">
+                      {documentSections.map((section) => (
+                        <button
+                          key={section.label}
+                          onClick={() => {
+                            const id = `section-${section.label
+                              .toLowerCase()
+                              .replace(/[^a-z0-9]+/g, "-")}`;
+                            const el = document.getElementById(id);
+                            if (el) el.scrollIntoView({ behavior: "smooth", block: "start" });
+                          }}
+                          className={cn(
+                            "text-left rounded-md px-3 py-1 text-xs font-semibold w-full",
+                            section.state === "complete"
+                              ? "bg-emerald-50 text-emerald-700"
+                              : "bg-amber-50 text-amber-700"
+                          )}
+                        >
+                          {section.label}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <section id="section-basic-information" className="space-y-3 rounded-3xl border border-slate-200 bg-white/90 p-5 shadow-sm">
+                <h3 id="section-Basic-Information" className="border-b border-slate-400 pb-2 text-lg font-bold text-slate-800">
                   Basic Information
                 </h3>
 
                 <div className="grid grid-cols-1 gap-4 md:grid-cols-4">
                   <select
-                    className="input"
+                    className={editorFieldClass(form.projectId)}
                     value={form.projectId}
                     onChange={(event) =>
                       applyProjectSelection(event.target.value)
@@ -665,21 +913,21 @@ export default function CompanyPrdRepositorySection() {
                   </select>
 
                   <input
-                    className="input"
+                    className={editorFieldClass(form.projectName)}
                     placeholder="Project Name"
                     value={form.projectName}
                     readOnly
                   />
 
                   <input
-                    className="input"
+                    className={editorFieldClass(form.author)}
                     placeholder="Client ID"
                     value={form.author}
                     readOnly
                   />
 
                   <input
-                    className="input"
+                    className={editorFieldClass(form.dateSubmitted)}
                     type="date"
                     value={form.dateSubmitted}
                     onChange={updateField("dateSubmitted")}
@@ -694,28 +942,28 @@ export default function CompanyPrdRepositorySection() {
                 )}
               </section>
 
-              <section className="space-y-3">
-                <h3 className="border-b border-slate-400 pb-2 text-lg font-bold text-slate-800">
+              <section id="section-project-overview" className="space-y-3 rounded-3xl border border-slate-200 bg-white/90 p-5 shadow-sm">
+                <h3 id="section-Project-Overview" className="border-b border-slate-400 pb-2 text-lg font-bold text-slate-800">
                   Project Overview
                 </h3>
 
                 <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
                   <input
-                    className="input"
+                    className={editorFieldClass(form.purpose)}
                     placeholder="Purpose"
                     value={form.purpose}
                     onChange={updateField("purpose")}
                   />
 
                   <input
-                    className="input"
+                    className={editorFieldClass(form.problemToSolve)}
                     placeholder="Problem to solve"
                     value={form.problemToSolve}
                     onChange={updateField("problemToSolve")}
                   />
 
                   <input
-                    className="input"
+                    className={editorFieldClass(form.projectGoal)}
                     placeholder="Project Goal"
                     value={form.projectGoal}
                     onChange={updateField("projectGoal")}
@@ -723,7 +971,7 @@ export default function CompanyPrdRepositorySection() {
                 </div>
               </section>
 
-              <section className="space-y-3">
+              <section id="section-key-stakeholders" className="space-y-3 rounded-3xl border border-slate-200 bg-white/90 p-5 shadow-sm">
                 <div className="flex items-center justify-between border-b border-slate-400 pb-2">
                   <h3 className="text-lg font-bold text-slate-800">
                     Key Stakeholders
@@ -744,21 +992,30 @@ export default function CompanyPrdRepositorySection() {
                     className="grid grid-cols-1 items-center gap-3 md:grid-cols-12"
                   >
                     <input
-                      className="input md:col-span-3"
+                      className={editorFieldClass(
+                        item.role,
+                        "md:col-span-3"
+                      )}
                       placeholder="Role"
                       value={item.role}
                       onChange={updateStakeholder(index, "role")}
                     />
 
                     <input
-                      className="input md:col-span-3"
+                      className={editorFieldClass(
+                        item.name,
+                        "md:col-span-3"
+                      )}
                       placeholder="Name"
                       value={item.name}
                       onChange={updateStakeholder(index, "name")}
                     />
 
                     <input
-                      className="input md:col-span-5"
+                      className={editorFieldClass(
+                        item.responsibility,
+                        "md:col-span-5"
+                      )}
                       placeholder="Responsibility"
                       value={item.responsibility}
                       onChange={updateStakeholder(index, "responsibility")}
@@ -777,21 +1034,21 @@ export default function CompanyPrdRepositorySection() {
                 ))}
               </section>
 
-              <section className="space-y-3">
-                <h3 className="border-b border-slate-400 pb-2 text-lg font-bold text-slate-800">
+              <section id="section-scope" className="space-y-3 rounded-3xl border border-slate-200 bg-white/90 p-5 shadow-sm">
+                <h3 id="section-Scope" className="border-b border-slate-400 pb-2 text-lg font-bold text-slate-800">
                   Scope
                 </h3>
 
                 <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
                   <textarea
-                    className="input min-h-24"
+                    className={editorFieldClass(form.inScope, "min-h-24")}
                     placeholder="In Scope"
                     value={form.inScope}
                     onChange={updateField("inScope")}
                   />
 
                   <textarea
-                    className="input min-h-24"
+                    className={editorFieldClass(form.outOfScope, "min-h-24")}
                     placeholder="Out of Scope"
                     value={form.outOfScope}
                     onChange={updateField("outOfScope")}
@@ -803,33 +1060,38 @@ export default function CompanyPrdRepositorySection() {
                 title="Main Features"
                 value={form.mainFeatures}
                 onChange={updateField("mainFeatures")}
+                helperText="List the core features the PRD must include."
               />
 
               <TextareaSection
                 title="Functional Requirement"
                 value={form.functionalRequirement}
                 onChange={updateField("functionalRequirement")}
+                helperText="Capture what the system should do in clear statements."
               />
 
               <TextareaSection
                 title="Non Functional Requirement"
                 value={form.nonFunctionalRequirement}
                 onChange={updateField("nonFunctionalRequirement")}
+                helperText="Add performance, security, usability, or reliability needs."
               />
 
               <TextareaSection
                 title="User Roles"
                 value={form.userRoles}
                 onChange={updateField("userRoles")}
+                helperText="Mention every role that interacts with the project."
               />
 
               <TextareaSection
                 title="Risk / Dependencies"
                 value={form.risksDependencies}
                 onChange={updateField("risksDependencies")}
+                helperText="Write any blockers, external systems, or dependencies."
               />
 
-              <section className="space-y-3">
+              <section id="section-requirements" className="space-y-3 rounded-3xl border border-slate-200 bg-white/90 p-5 shadow-sm">
                 <div className="flex items-center justify-between border-b border-slate-400 pb-2">
                   <h3 className="text-lg font-bold text-slate-800">
                     Timeline / Milestone
@@ -850,28 +1112,37 @@ export default function CompanyPrdRepositorySection() {
                     className="grid grid-cols-1 items-center gap-3 md:grid-cols-12"
                   >
                     <input
-                      className="input md:col-span-2"
+                      className={editorFieldClass(
+                        item.phase,
+                        "md:col-span-2"
+                      )}
                       placeholder="Phase"
                       value={item.phase}
                       onChange={updateMilestone(index, "phase")}
                     />
 
                     <input
-                      className="input md:col-span-4"
+                      className={editorFieldClass(item.task, "md:col-span-4")}
                       placeholder="Task"
                       value={item.task}
                       onChange={updateMilestone(index, "task")}
                     />
 
                     <input
-                      className="input md:col-span-2"
+                      className={editorFieldClass(
+                        item.duration,
+                        "md:col-span-2"
+                      )}
                       placeholder="Duration"
                       value={item.duration}
                       onChange={updateMilestone(index, "duration")}
                     />
 
                     <input
-                      className="input md:col-span-3"
+                      className={editorFieldClass(
+                        item.responsibility,
+                        "md:col-span-3"
+                      )}
                       placeholder="Responsibility"
                       value={item.responsibility}
                       onChange={updateMilestone(index, "responsibility")}
@@ -921,32 +1192,218 @@ export default function CompanyPrdRepositorySection() {
       )}
 
       <style jsx global>{`
-        .input {
+        .prd-editor-input {
           width: 100%;
-          border: none;
-          border-radius: 10px;
+          border: 1px solid transparent;
+          border-radius: 14px;
+          font-family: ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial;
+          font-size: 15px;
+          padding: 14px 16px;
           padding: 12px 14px;
-          background: #dfe3ea;
+          background: linear-gradient(180deg, #dfe3ea 0%, #d8dee8 100%);
           color: #0f172a;
+          box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.5);
+          transition:
+            border-color 0.2s ease,
+            box-shadow 0.2s ease,
+            background 0.2s ease,
+            transform 0.2s ease;
         }
 
-        .input:focus {
+        .prd-editor-input:focus {
           outline: 2px solid #1a1a40;
           outline-offset: 1px;
           background: #eef2f8;
+          border-color: #1a1a40;
+          transform: translateY(-1px);
+        }
+
+        .prd-editor-input--empty {
+          border-color: rgba(245, 158, 11, 0.35);
+          background: linear-gradient(180deg, #fff8eb 0%, #f1f4fb 100%);
+          box-shadow: inset 0 0 0 1px rgba(251, 191, 36, 0.18);
+        }
+
+        .prd-editor-input--empty::placeholder {
+          color: #9aa4b2;
+          font-weight: 500;
+        }
+
+        .prd-editor-textarea {
+          min-height: 6.5rem;
+          line-height: 1.6;
+          resize: vertical;
+        }
+
+        .prd-preview {
+          min-height: 3.5rem;
+          max-height: 12rem;
+          overflow: auto;
+          white-space: pre-wrap;
+        }
+
+        .prd-preview p {
+          margin: 0 0 0.6rem 0;
+        }
+
+        .prd-preview ul {
+          list-style: disc;
+          list-style-position: outside;
+          margin: 0.2rem 0 0.6rem 1.2rem;
+          padding-left: 1rem;
+        }
+        .prd-preview li {
+          margin: 0.15rem 0;
+        }
+
+        .toolbar-btn {
+          display: inline-flex;
+          flex-direction: column;
+          align-items: flex-start;
+          gap: 2px;
+          border-radius: 10px;
+          background: #f1f5f9;
+          padding: 8px 12px;
+          font-weight: 700;
+          border: 1px solid rgba(15, 23, 42, 0.04);
+          cursor: pointer;
+          min-width: 126px;
+          text-align: left;
+          transition:
+            background 0.2s ease,
+            transform 0.2s ease,
+            box-shadow 0.2s ease;
+        }
+
+        .toolbar-btn:hover {
+          background: #e6eefb;
+          transform: translateY(-1px);
+          box-shadow: 0 8px 18px rgba(15, 23, 42, 0.06);
+        }
+
+        .toolbar-label {
+          font-size: 0.92rem;
+          line-height: 1.1;
+          color: #0f172a;
+        }
+
+        .toolbar-hint {
+          font-size: 0.72rem;
+          font-weight: 500;
+          color: #64748b;
         }
       `}</style>
     </>
   );
 }
 
-function TextareaSection({ title, value, onChange }) {
+function TextareaSection({ title, value, onChange, helperText = "" }) {
+  const ref = (0, require("react").useRef)(null);
+
+  const applyWrap = (before, after = before) => {
+    const el = ref.current;
+    if (!el) return;
+    const start = el.selectionStart;
+    const end = el.selectionEnd;
+    const text = el.value || "";
+    const selected = text.slice(start, end) || "";
+    const newText = text.slice(0, start) + before + selected + after + text.slice(end);
+    onChange({ target: { value: newText } });
+
+    // restore selection after update
+    requestAnimationFrame(() => {
+      el.focus();
+      el.selectionStart = start + before.length;
+      el.selectionEnd = start + before.length + selected.length;
+    });
+  };
+
+  const applyBullet = () => {
+    const el = ref.current;
+    if (!el) return;
+    const start = el.selectionStart;
+    const end = el.selectionEnd;
+    const text = el.value || "";
+    const selected = text.slice(start, end) || "";
+
+    if (!selected) {
+      const newText = `${text.slice(0, start)}- ${text.slice(end)}`;
+      onChange({ target: { value: newText } });
+
+      requestAnimationFrame(() => {
+        el.focus();
+        el.selectionStart = start + 2;
+        el.selectionEnd = start + 2;
+      });
+      return;
+    }
+
+    const lines = selected.split(/\r?\n/).map((l) => (l.trim() ? `- ${l}` : l));
+    const newSelected = lines.join("\n");
+    const newText = text.slice(0, start) + newSelected + text.slice(end);
+    onChange({ target: { value: newText } });
+
+    requestAnimationFrame(() => {
+      el.focus();
+      el.selectionStart = start;
+      el.selectionEnd = start + newSelected.length;
+    });
+  };
+
   return (
-    <section className="space-y-3">
-      <h3 className="text-sm font-extrabold uppercase text-slate-600">
-        {title}
-      </h3>
-      <textarea className="input min-h-24" value={value} onChange={onChange} />
+    <section className="space-y-3 rounded-3xl border border-slate-200 bg-white/90 p-5 shadow-sm">
+      <h3 className="text-sm font-extrabold uppercase text-slate-600">{title}</h3>
+      {helperText && <p className="text-sm text-slate-500">{helperText}</p>}
+
+      <div className="prd-toolbar mb-2 flex flex-wrap gap-2">
+        <button
+          type="button"
+          onClick={() => applyWrap("**", "**")}
+          className="toolbar-btn"
+          title="Bold selected text"
+          aria-label="Bold selected text"
+        >
+          <span className="toolbar-label">Bold</span>
+          <span className="toolbar-hint">Make text strong</span>
+        </button>
+
+        <button
+          type="button"
+          onClick={() => applyWrap("*", "*")}
+          className="toolbar-btn"
+          title="Italic selected text"
+          aria-label="Italic selected text"
+        >
+          <span className="toolbar-label">Italic</span>
+          <span className="toolbar-hint">Add emphasis</span>
+        </button>
+
+        <button
+          type="button"
+          onClick={applyBullet}
+          className="toolbar-btn"
+          title="Add bullet list"
+          aria-label="Add bullet list"
+        >
+          <span className="toolbar-label">Bullet List</span>
+          <span className="toolbar-hint">Turn lines into bullets</span>
+        </button>
+      </div>
+
+      <textarea
+        ref={ref}
+        className={editorFieldClass(value, "prd-editor-textarea")}
+        value={value}
+        onChange={onChange}
+      />
+
+      <div className="mt-3">
+        <p className="text-xs font-semibold text-slate-500 mb-2">Preview</p>
+        <div
+          className="prd-preview rounded-md border border-slate-100 bg-[#fbfdff] p-4 text-slate-800"
+          dangerouslySetInnerHTML={{ __html: renderMarkdown(value) }}
+        />
+      </div>
     </section>
   );
 }
