@@ -96,6 +96,8 @@ export default function CompanyProposalsListSectionPage() {
     fetchProposals();
   }, []);
 
+
+
   const content = useMemo(() => {
     if (loading) {
       return (
