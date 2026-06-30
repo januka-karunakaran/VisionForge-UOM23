@@ -2,9 +2,12 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Plus, Trash2, X } from "lucide-react";
+import { Plus, Trash2, X, Bold, Italic, Underline, List, ListOrdered, Quote, Link2 } from "lucide-react";
 import { cn } from "@/utils/cn";
-import { createCompanyProposal, getRegisteredClients } from "@/services/api";
+import {
+  createCompanyProposal,
+  getRegisteredClients,
+} from "@/services/proposalService";
 
 const resolveCompanyId = () => {
   try {
@@ -27,12 +30,12 @@ const hasText = (value) =>
     .replace(/<[^>]*>/g, " ")
     .trim().length > 0;
 
+/* ---------------- Professional Minimalist Rich Text Editor ---------------- */
 function RichTextField({
   title = "",
   value,
   onChange,
   placeholder = "Enter text",
-  compact = false,
   className = "",
 }) {
   const editorRef = useRef(null);
@@ -69,143 +72,95 @@ function RichTextField({
     runCommand("createLink", url);
   };
 
-  const editorClasses = cn(
-    "rich-editor-content",
-    compact && "rich-editor-content--compact",
-    !hasText(value) && "rich-editor-content--empty"
-  );
-
   return (
-    <div
-      className={cn(
-        "rich-editor-shell",
-        compact && "rich-editor-shell--compact",
-        className
-      )}
-    >
+    <div className={cn("w-full space-y-2", className)}>
       {title && (
-        <div className="rich-editor-heading">
-          <h3 className="rich-editor-title">{title}</h3>
-        </div>
+        <label className="text-sm font-semibold text-slate-700">
+          {title}
+        </label>
       )}
 
-      <div
-        className={cn(
-          "rich-editor-toolbar",
-          compact && "rich-editor-toolbar--compact"
-        )}
-      >
-        <div
-          className={cn(
-            "rich-editor-group",
-            compact && "rich-editor-group--compact"
-          )}
-        >
+      <div className="rounded-2xl border border-slate-200 bg-white shadow-sm transition-all focus-within:border-indigo-400 focus-within:ring-4 focus-within:ring-indigo-50 overflow-hidden">
+        {/* Modern Borderless Toolbar */}
+        <div className="flex flex-wrap items-center gap-1 bg-slate-50/70 px-3 py-2 border-b border-slate-100">
           <button
             type="button"
-            className={cn(
-              "rich-editor-button",
-              compact && "rich-editor-button--compact"
-            )}
             onClick={() => runCommand("bold")}
-            aria-label="Bold"
+            className="p-1.5 rounded-lg text-slate-600 hover:bg-slate-200/70 hover:text-slate-900 transition"
+            title="Bold"
           >
-            <span className="font-bold">B</span>
+            <Bold size={16} />
           </button>
-
           <button
             type="button"
-            className={cn(
-              "rich-editor-button",
-              compact && "rich-editor-button--compact"
-            )}
             onClick={() => runCommand("italic")}
-            aria-label="Italic"
+            className="p-1.5 rounded-lg text-slate-600 hover:bg-slate-200/70 hover:text-slate-900 transition"
+            title="Italic"
           >
-            <span className="italic">I</span>
+            <Italic size={16} />
           </button>
-
           <button
             type="button"
-            className={cn(
-              "rich-editor-button",
-              compact && "rich-editor-button--compact"
-            )}
             onClick={() => runCommand("underline")}
-            aria-label="Underline"
+            className="p-1.5 rounded-lg text-slate-600 hover:bg-slate-200/70 hover:text-slate-900 transition"
+            title="Underline"
           >
-            <span className="underline">U</span>
+            <Underline size={16} />
           </button>
+          
+          <div className="h-4 w-[1px] bg-slate-200 mx-1" />
 
           <button
             type="button"
-            className={cn(
-              "rich-editor-button",
-              compact && "rich-editor-button--compact"
-            )}
             onClick={() => runCommand("insertUnorderedList")}
-            aria-label="Bulleted list"
+            className="p-1.5 rounded-lg text-slate-600 hover:bg-slate-200/70 hover:text-slate-900 transition"
+            title="Bullet List"
           >
-            <span>•</span>
+            <List size={16} />
           </button>
-
           <button
             type="button"
-            className={cn(
-              "rich-editor-button",
-              compact && "rich-editor-button--compact"
-            )}
             onClick={() => runCommand("insertOrderedList")}
-            aria-label="Numbered list"
+            className="p-1.5 rounded-lg text-slate-600 hover:bg-slate-200/70 hover:text-slate-900 transition"
+            title="Numbered List"
           >
-            <span>1.</span>
+            <ListOrdered size={16} />
           </button>
-
           <button
             type="button"
-            className={cn(
-              "rich-editor-button",
-              compact && "rich-editor-button--compact"
-            )}
             onClick={() => runCommand("formatBlock", "blockquote")}
-            aria-label="Quote block"
+            className="p-1.5 rounded-lg text-slate-600 hover:bg-slate-200/70 hover:text-slate-900 transition"
+            title="Quote"
           >
-            <span>""</span>
+            <Quote size={16} />
           </button>
+
+          <div className="h-4 w-[1px] bg-slate-200 mx-1" />
 
           <button
             type="button"
-            className={cn(
-              "rich-editor-button",
-              compact && "rich-editor-button--compact"
-            )}
             onClick={insertLink}
-            aria-label="Insert link"
+            className="p-1.5 rounded-lg text-slate-600 hover:bg-slate-200/70 hover:text-slate-900 transition"
+            title="Insert Link"
           >
-            <span>🔗</span>
+            <Link2 size={16} />
           </button>
         </div>
-      </div>
 
-      <div
-        ref={editorRef}
-        className={editorClasses}
-        contentEditable
-        suppressContentEditableWarning
-        data-placeholder={placeholder || title || "Enter text"}
-        onInput={updateValue}
-        onBlur={updateValue}
-        style={{
-          outline: "none",
-          padding: "12px",
-          minHeight: "100px",
-          border: "1px solid #e2e8f0",
-          borderRadius: "12px",
-          backgroundColor: "#f8fafc",
-          fontSize: "14px",
-          lineHeight: "1.5",
-        }}
-      />
+        {/* Editor Writing Canvas */}
+        <div
+          ref={editorRef}
+          contentEditable
+          suppressContentEditableWarning
+          data-placeholder={placeholder}
+          onInput={updateValue}
+          onBlur={updateValue}
+          className={cn(
+            "prose prose-sm max-w-none min-h-[120px] px-4 py-3 text-sm text-slate-800 outline-none bg-white font-medium before:text-slate-400 before:pointer-events-none data-placeholder:before:content-[attr(data-placeholder)]",
+            !hasText(value) ? "relative before:absolute" : "before:hidden"
+          )}
+        />
+      </div>
     </div>
   );
 }
@@ -221,10 +176,8 @@ export default function CreateProposalSectionPage() {
   const [form, setForm] = useState({
     title: "",
     clientId: "",
-    clientName: "",
     description: "",
     purpose: "",
-    expectedOutcome: "",
     keyDeliverables: "",
   });
 
@@ -270,16 +223,16 @@ export default function CreateProposalSectionPage() {
   }, [form, timelineData, budgetData]);
 
   const editorCompletion = useMemo(() => {
-    const totalFields = 9;
+    const totalFields = 4 + timelineData.length + budgetData.length;
     let filledFields = 0;
 
     if (hasText(form.title)) filledFields++;
     if (hasText(form.clientId)) filledFields++;
-    if (hasText(form.clientName)) filledFields++;
     if (hasText(form.description)) filledFields++;
+    if (hasText(form.purpose)) filledFields++;
 
     filledFields += timelineData.filter((row) => row.phase && row.startDate && row.endDate).length;
-    filledFields += budgetData.filter((row) => row.item && row.qty).length;
+    filledFields += budgetData.filter((row) => row.item && row.qty && row.unitCost).length;
 
     const percent = Math.round((filledFields / totalFields) * 100);
     return {
@@ -288,6 +241,35 @@ export default function CreateProposalSectionPage() {
       total: totalFields,
     };
   }, [form, timelineData, budgetData]);
+
+  const documentSections = useMemo(
+    () => [
+      {
+        label: "Proposal Information",
+        state:
+          hasText(form.title) && hasText(form.clientId) && hasText(form.description)
+            ? "complete"
+            : "missing",
+      },
+      {
+        label: "Timeline",
+        state:
+          timelineData.length > 0 &&
+          timelineData.every((row) => row.phase && row.startDate && row.endDate)
+            ? "complete"
+            : "missing",
+      },
+      {
+        label: "Budget",
+        state:
+          budgetData.length > 0 &&
+          budgetData.every((row) => row.item && row.qty && row.unitCost)
+            ? "complete"
+            : "missing",
+      },
+    ],
+    [form.title, form.clientId, form.description, timelineData, budgetData]
+  );
 
   const calculateDuration = (startDate, endDate) => {
     if (!startDate || !endDate) return "";
@@ -319,11 +301,15 @@ export default function CreateProposalSectionPage() {
         return sum + (parseFloat(row.total) || 0);
       }, 0);
 
+      const selectedClient = clientOptions.find((c) => String(c.id) === String(form.clientId));
+
       const payload = {
         title: form.title,
         description: form.description,
+        purpose: form.purpose,
+        keyDeliverables: form.keyDeliverables,
         clientId: form.clientId,
-        clientName: form.clientName || "",
+        clientName: selectedClient?.fullName || selectedClient?.email || "",
         companyId,
         totalDurationDays,
         totalBudget,
@@ -349,10 +335,8 @@ export default function CreateProposalSectionPage() {
     setForm({
       title: "",
       clientId: "",
-      clientName: "",
       description: "",
       purpose: "",
-      expectedOutcome: "",
       keyDeliverables: "",
     });
     setTimelineData([{ phase: "", startDate: "", endDate: "", duration: "", assignedTo: "" }]);
@@ -373,6 +357,7 @@ export default function CreateProposalSectionPage() {
         </div>
 
         <button
+          type="button"
           onClick={() => router.push("/company/ProposalsListSection")}
           className="flex h-10 w-10 items-center justify-center rounded-full bg-slate-200 hover:bg-slate-300"
         >
@@ -424,70 +409,121 @@ export default function CreateProposalSectionPage() {
               style={{ width: `${editorCompletion.percent}%` }}
             />
           </div>
+
+          <div className="mt-4 grid gap-3 lg:grid-cols-[1.2fr_0.8fr]">
+            <div className="rounded-2xl border border-slate-200 bg-white p-4">
+              <p className="text-xs font-bold uppercase tracking-[0.18em] text-slate-500">
+                Writing guidance
+              </p>
+              <div className="mt-3 flex flex-wrap gap-2 text-xs font-medium text-slate-600">
+                <span className="rounded-full bg-amber-50 px-3 py-1 text-amber-700">
+                  Empty fields are highlighted
+                </span>
+                <span className="rounded-full bg-slate-100 px-3 py-1">
+                  Use short sentences in long fields
+                </span>
+                <span className="rounded-full bg-slate-100 px-3 py-1">
+                  Keep items specific and measurable
+                </span>
+              </div>
+            </div>
+
+            <div className="rounded-2xl border border-slate-200 bg-white p-4">
+              <p className="text-xs font-bold uppercase tracking-[0.18em] text-slate-500">
+                Document outline
+              </p>
+              <div className="mt-3 flex flex-col gap-2">
+                {documentSections.map((section) => (
+                  <button
+                    key={section.label}
+                    type="button"
+                    onClick={() => {
+                      const id = `section-${section.label
+                        .toLowerCase()
+                        .replace(/[^a-z0-9]+/g, "-")}`;
+                      const el = document.getElementById(id);
+                      if (el) {
+                        el.scrollIntoView({ behavior: "smooth", block: "start" });
+                      }
+                    }}
+                    className={cn(
+                      "w-full rounded-md px-3 py-2 text-left text-xs font-semibold transition",
+                      section.state === "complete"
+                        ? "bg-emerald-50 text-emerald-700"
+                        : "bg-amber-50 text-amber-700"
+                    )}
+                  >
+                    {section.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+          </div>
         </div>
 
         {/* Proposal Information */}
-        <section className="space-y-4 rounded-3xl border border-slate-200 bg-white/90 p-6 shadow-sm">
+        <section
+          id="section-proposal-information"
+          className="space-y-5 rounded-3xl border border-slate-200 bg-white/90 p-6 shadow-sm"
+        >
           <h2 className="border-b border-slate-300 pb-3 text-xl font-bold text-slate-900">
             Proposal Information
           </h2>
 
-          <div className="grid gap-4 md:grid-cols-2">
-            <input
-              type="text"
+          <div className="grid gap-5 md:grid-cols-2">
+            <RichTextField
+              title="Proposal title"
               value={form.title}
+              placeholder="Enter proposal title *"
               onChange={(e) => setForm({ ...form, title: e.target.value })}
-              placeholder="Proposal title *"
-              className="rounded-2xl border border-slate-200 bg-slate-50 px-5 py-4 text-sm font-semibold text-slate-700 outline-none transition placeholder:text-slate-400 focus:border-indigo-400 focus:ring-4 focus:ring-indigo-100"
             />
 
-            <select
-              value={form.clientId}
-              onChange={(e) => {
-                const client = clientOptions.find((c) => c.id === e.target.value);
-                setForm({
-                  ...form,
-                  clientId: e.target.value,
-                  clientName: client?.fullName || client?.email || "",
-                });
-              }}
-              className="rounded-2xl border border-slate-200 bg-slate-50 px-5 py-4 text-sm font-semibold text-slate-700 outline-none transition focus:border-indigo-400 focus:ring-4 focus:ring-indigo-100"
-            >
-              <option value="">Select Client *</option>
-              {clientOptions.map((client) => (
-                <option key={client.id} value={client.id}>
-                  {client.fullName || client.email || "Client"}
-                </option>
-              ))}
-            </select>
+            <div className="flex flex-col space-y-2">
+              <label className="text-sm font-semibold text-slate-700">
+                Select Client *
+              </label>
+              <select
+                value={form.clientId}
+                onChange={(e) => setForm({ ...form, clientId: e.target.value })}
+                className="rounded-2xl border border-slate-200 bg-white px-5 py-4 text-sm font-semibold text-slate-700 outline-none transition shadow-sm focus:border-indigo-400 focus:ring-4 focus:ring-indigo-100"
+              >
+                <option value="">Select Client *</option>
+                {clientOptions.map((client) => (
+                  <option key={client.id} value={client.id}>
+                    {client.fullName || client.email || "Client"}
+                  </option>
+                ))}
+              </select>
+            </div>
           </div>
 
-          <div className="grid gap-4 md:grid-cols-2">
-            <RichTextField
-              title="Purpose"
-              value={form.purpose}
-              onChange={(e) => setForm({ ...form, purpose: e.target.value })}
-              placeholder="Purpose"
-            />
+          <RichTextField
+            title="Description"
+            value={form.description}
+            onChange={(e) => setForm({ ...form, description: e.target.value })}
+            placeholder="Enter proposal details and description *"
+          />
 
-            <RichTextField
-              title="Expected Outcome"
-              value={form.expectedOutcome}
-              onChange={(e) => setForm({ ...form, expectedOutcome: e.target.value })}
-              placeholder="Expected Outcome"
-            />
-          </div>
+          <RichTextField
+            title="Purpose"
+            value={form.purpose}
+            onChange={(e) => setForm({ ...form, purpose: e.target.value })}
+            placeholder="Enter the primary objective or purpose"
+          />
 
           <RichTextField
             title="Key Deliverables"
             value={form.keyDeliverables}
             onChange={(e) => setForm({ ...form, keyDeliverables: e.target.value })}
-            placeholder="Key Deliverables"
+            placeholder="List key items or milestones to be delivered"
           />
         </section>
 
         {/* Timeline */}
-        <section className="space-y-4 rounded-3xl border border-slate-200 bg-white/90 p-6 shadow-sm">
+        <section
+          id="section-timeline"
+          className="space-y-4 rounded-3xl border border-slate-200 bg-white/90 p-6 shadow-sm"
+        >
           <h2 className="border-b border-slate-300 pb-3 text-xl font-bold text-slate-900">
             Timeline
           </h2>
@@ -765,11 +801,12 @@ export default function CreateProposalSectionPage() {
           <button
             type="submit"
             disabled={!isFormValid || isLoading}
-            className={`rounded-2xl px-8 py-3 text-sm font-black text-white shadow-lg transition ${
+            className={cn(
+              "rounded-2xl px-8 py-3 text-sm font-black text-white shadow-lg transition",
               isFormValid && !isLoading
                 ? "bg-gradient-to-r from-indigo-600 to-violet-600 hover:-translate-y-0.5 hover:shadow-xl"
                 : "cursor-not-allowed bg-slate-300"
-            }`}
+            )}
           >
             {isLoading ? "Creating..." : "Create Proposal"}
           </button>

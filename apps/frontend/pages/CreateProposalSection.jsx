@@ -1,9 +1,200 @@
 "use client";
 
-import React, { useState, useMemo } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import { X } from "lucide-react";
 
 const cn = (...classes) => classes.filter(Boolean).join(" ");
+
+const stripHtml = (value) =>
+  String(value || "")
+    .replace(/<style[\s\S]*?<\/style>/gi, " ")
+    .replace(/<script[\s\S]*?<\/script>/gi, " ")
+    .replace(/<[^>]*>/g, " ")
+    .replace(/&nbsp;/gi, " ")
+    .trim();
+
+const hasText = (value) => stripHtml(value).length > 0;
+
+/* ---------------- Rich Text Field (same pattern as PRD page) ---------------- */
+
+function RichTextField({
+  title = "",
+  value,
+  onChange,
+  helperText = "",
+  placeholder = "Enter text",
+  compact = false,
+  className = "",
+}) {
+  const editorRef = useRef(null);
+
+  useEffect(() => {
+    const editor = editorRef.current;
+    if (!editor) return;
+
+    const nextValue = String(value || "");
+    if (editor.innerHTML !== nextValue) {
+      editor.innerHTML = nextValue;
+    }
+  }, [value]);
+
+  const updateValue = () => {
+    const editor = editorRef.current;
+    if (!editor) return;
+    onChange({ target: { value: editor.innerHTML } });
+  };
+
+  const runCommand = (command, argument = null) => {
+    const editor = editorRef.current;
+    if (!editor || typeof document === "undefined") return;
+
+    editor.focus();
+    document.execCommand(command, false, argument);
+    updateValue();
+  };
+
+  const insertLink = () => {
+    if (typeof window === "undefined") return;
+    const url = window.prompt("Enter link URL");
+    if (!url) return;
+    runCommand("createLink", url);
+  };
+
+  const editorClasses = cn(
+    "rich-editor-content",
+    compact && "rich-editor-content--compact",
+    !hasText(value) && "rich-editor-content--empty"
+  );
+
+  return (
+    <div
+      className={cn(
+        "rich-editor-shell",
+        compact && "rich-editor-shell--compact",
+        className
+      )}
+    >
+      {(title || helperText) && (
+        <div className="rich-editor-heading">
+          <div>
+            {title && <h3 className="rich-editor-title">{title}</h3>}
+            {helperText && <p className="rich-editor-helper">{helperText}</p>}
+          </div>
+        </div>
+      )}
+
+      <div
+        className={cn(
+          "rich-editor-toolbar",
+          compact && "rich-editor-toolbar--compact"
+        )}
+      >
+        <div
+          className={cn(
+            "rich-editor-group",
+            compact && "rich-editor-group--compact"
+          )}
+        >
+          <button
+            type="button"
+            className={cn(
+              "rich-editor-button",
+              compact && "rich-editor-button--compact"
+            )}
+            onClick={() => runCommand("bold")}
+            aria-label="Bold"
+          >
+            <span className="font-bold">B</span>
+          </button>
+
+          <button
+            type="button"
+            className={cn(
+              "rich-editor-button",
+              compact && "rich-editor-button--compact"
+            )}
+            onClick={() => runCommand("italic")}
+            aria-label="Italic"
+          >
+            <span className="italic">I</span>
+          </button>
+
+          <button
+            type="button"
+            className={cn(
+              "rich-editor-button",
+              compact && "rich-editor-button--compact"
+            )}
+            onClick={() => runCommand("underline")}
+            aria-label="Underline"
+          >
+            <span className="underline">U</span>
+          </button>
+
+          <button
+            type="button"
+            className={cn(
+              "rich-editor-button",
+              compact && "rich-editor-button--compact"
+            )}
+            onClick={() => runCommand("insertUnorderedList")}
+            aria-label="Bulleted list"
+          >
+            <span>•</span>
+          </button>
+
+          <button
+            type="button"
+            className={cn(
+              "rich-editor-button",
+              compact && "rich-editor-button--compact"
+            )}
+            onClick={() => runCommand("insertOrderedList")}
+            aria-label="Numbered list"
+          >
+            <span>1.</span>
+          </button>
+
+          <button
+            type="button"
+            className={cn(
+              "rich-editor-button",
+              compact && "rich-editor-button--compact"
+            )}
+            onClick={() => runCommand("formatBlock", "blockquote")}
+            aria-label="Quote block"
+          >
+            <span>&ldquo;&rdquo;</span>
+          </button>
+
+          <button
+            type="button"
+            className={cn(
+              "rich-editor-button",
+              compact && "rich-editor-button--compact"
+            )}
+            onClick={insertLink}
+            aria-label="Insert link"
+          >
+            <span>🔗</span>
+          </button>
+        </div>
+      </div>
+
+      <div
+        ref={editorRef}
+        className={editorClasses}
+        contentEditable
+        suppressContentEditableWarning
+        data-placeholder={placeholder || title || "Enter text"}
+        onInput={updateValue}
+        onBlur={updateValue}
+      />
+    </div>
+  );
+}
+
+/* ---------------- Main Component ---------------- */
 
 export default function CreateProposalSection({
   newProposal = { title: "", clientId: "", clientName: "", description: "" },
@@ -30,7 +221,7 @@ export default function CreateProposalSection({
   const [timelineSavedMessage, setTimelineSavedMessage] = useState("");
   const [budgetSavedMessage, setBudgetSavedMessage] = useState("");
 
-  const isNonEmpty = (value) => String(value ?? "").trim() !== "";
+  const isNonEmpty = (value) => hasText(value);
 
   const isProposalComplete =
     isNonEmpty(newProposal.title) &&
@@ -73,19 +264,19 @@ export default function CreateProposalSection({
     if (isNonEmpty(newProposal.clientName)) filledFields++;
     if (isNonEmpty(newProposal.description)) filledFields++;
 
-    filledFields += timelineData.filter(
-      (row) =>
-        isNonEmpty(row.phase) &&
-        isNonEmpty(row.startDate) &&
-        isNonEmpty(row.endDate)
-    ).length * 3;
+    filledFields +=
+      timelineData.filter(
+        (row) =>
+          isNonEmpty(row.phase) &&
+          isNonEmpty(row.startDate) &&
+          isNonEmpty(row.endDate)
+      ).length * 3;
 
-    filledFields += budgetData.filter(
-      (row) =>
-        isNonEmpty(row.item) &&
-        isNonEmpty(row.qty) &&
-        isNonEmpty(row.unitCost)
-    ).length * 3;
+    filledFields +=
+      budgetData.filter(
+        (row) =>
+          isNonEmpty(row.item) && isNonEmpty(row.qty) && isNonEmpty(row.unitCost)
+      ).length * 3;
 
     const percent = Math.round((filledFields / totalFields) * 100);
     return {
@@ -141,14 +332,15 @@ export default function CreateProposalSection({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
-      <form
-        onSubmit={(e) => {
-          e.preventDefault();
-          onSubmit();
-        }}
-        className="flex max-h-[90vh] w-full max-w-4xl flex-col rounded-3xl border border-slate-200 bg-[#F5F7FB] shadow-2xl"
-      >
+    <div className="min-h-screen bg-[#F5F7FB]">
+      <div className="mx-auto max-w-6xl p-6">
+        <form
+          onSubmit={(e) => {
+            e.preventDefault();
+            onSubmit();
+          }}
+          className="flex w-full flex-col rounded-3xl border border-slate-200 bg-white shadow-2xl"
+        >
         {/* Header */}
         <div className="flex items-center justify-between border-b border-slate-300 px-6 py-5">
           <h2 className="text-3xl font-extrabold text-[#1A1A40]">
@@ -157,7 +349,11 @@ export default function CreateProposalSection({
 
           <button
             type="button"
-            onClick={onClose}
+            onClick={() => {
+              if (typeof window !== "undefined" && window.history && window.history.length > 0) {
+                window.history.back();
+              }
+            }}
             className="flex h-10 w-10 items-center justify-center rounded-full bg-slate-200 hover:bg-slate-300"
             aria-label="Close"
           >
@@ -167,7 +363,7 @@ export default function CreateProposalSection({
 
         {/* Content */}
         <div className="space-y-6 overflow-y-auto px-6 py-6">
-          {/* Progress Card */}
+          {/* Progress Card (Document Editor) */}
           <div className="rounded-3xl border border-slate-200 bg-gradient-to-br from-white to-[#F7F8FC] p-3 shadow-sm">
             <div className="flex flex-wrap items-start justify-between gap-3">
               <div>
@@ -323,20 +519,18 @@ export default function CreateProposalSection({
                 placeholder="Client name *"
                 className="rounded-2xl border border-slate-200 bg-slate-50 px-5 py-4 text-sm font-semibold text-slate-700 outline-none transition placeholder:text-slate-400 focus:border-indigo-400 focus:ring-4 focus:ring-indigo-100 md:col-span-2"
               />
-
-              <textarea
-                value={newProposal.description}
-                onChange={(event) =>
-                  setNewProposal({
-                    ...newProposal,
-                    description: event.target.value,
-                  })
-                }
-                placeholder="Description *"
-                rows={3}
-                className="rounded-2xl border border-slate-200 bg-slate-50 px-5 py-4 text-sm font-semibold text-slate-700 outline-none transition placeholder:text-slate-400 focus:border-indigo-400 focus:ring-4 focus:ring-indigo-100 md:col-span-4"
-              />
             </div>
+
+            {/* Description as rich text editor */}
+            <RichTextField
+              title="Description"
+              value={newProposal.description}
+              onChange={(e) =>
+                setNewProposal({ ...newProposal, description: e.target.value })
+              }
+              placeholder="Description *"
+              compact
+            />
           </section>
 
           {/* Timeline Section */}
@@ -693,6 +887,163 @@ export default function CreateProposalSection({
           </button>
         </div>
       </form>
+
+      <style jsx global>{`
+        .rich-editor-shell {
+          display: flex;
+          flex-direction: column;
+          gap: 0.75rem;
+          border-radius: 1.5rem;
+          border: 1px solid rgba(226, 232, 240, 0.95);
+          background: rgba(255, 255, 255, 0.92);
+          padding: 1rem;
+          box-shadow: 0 8px 26px rgba(15, 23, 42, 0.05);
+        }
+
+        .rich-editor-shell--compact {
+          gap: 0.45rem;
+          padding: 0.75rem;
+          border-radius: 1.15rem;
+        }
+
+        .rich-editor-heading {
+          display: flex;
+          flex-wrap: wrap;
+          align-items: end;
+          justify-content: space-between;
+          gap: 0.5rem;
+        }
+
+        .rich-editor-title {
+          font-size: 0.92rem;
+          font-weight: 800;
+          text-transform: uppercase;
+          letter-spacing: 0.08em;
+          color: #475569;
+        }
+
+        .rich-editor-helper {
+          font-size: 0.9rem;
+          color: #64748b;
+        }
+
+        .rich-editor-toolbar {
+          display: flex;
+          flex-wrap: wrap;
+          align-items: center;
+          gap: 0.5rem;
+          border-radius: 1rem;
+          background: linear-gradient(180deg, #f8fafc 0%, #eef2f7 100%);
+          padding: 0.65rem;
+          border: 1px solid rgba(148, 163, 184, 0.18);
+        }
+
+        .rich-editor-toolbar--compact {
+          gap: 0.35rem;
+          padding: 0.5rem;
+        }
+
+        .rich-editor-group {
+          display: flex;
+          flex-wrap: wrap;
+          align-items: center;
+          gap: 0.45rem;
+        }
+
+        .rich-editor-group--compact {
+          gap: 0.3rem;
+        }
+
+        .rich-editor-button {
+          display: inline-flex;
+          align-items: center;
+          justify-content: center;
+          gap: 0.35rem;
+          border-radius: 0.75rem;
+          border: 1px solid rgba(148, 163, 184, 0.16);
+          background: #fff;
+          padding: 0.55rem 0.7rem;
+          min-width: 2.6rem;
+          font-weight: 700;
+          color: #1e293b;
+          transition: transform 0.2s ease, background 0.2s ease,
+            box-shadow 0.2s ease;
+        }
+
+        .rich-editor-button--compact {
+          min-width: 2.2rem;
+          padding: 0.46rem 0.6rem;
+          border-radius: 0.65rem;
+        }
+
+        .rich-editor-button:hover {
+          background: #eaf1ff;
+          transform: translateY(-1px);
+          box-shadow: 0 8px 16px rgba(15, 23, 42, 0.08);
+        }
+
+        .rich-editor-button span {
+          line-height: 1;
+        }
+
+        .rich-editor-content {
+          min-height: 8rem;
+          border-radius: 1rem;
+          border: 1px solid rgba(203, 213, 225, 0.9);
+          background: linear-gradient(180deg, #ffffff 0%, #f9fbff 100%);
+          padding: 0.95rem 1rem;
+          color: #0f172a;
+          line-height: 1.65;
+          outline: none;
+          white-space: pre-wrap;
+          word-break: break-word;
+          box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.7);
+        }
+
+        .rich-editor-content--compact {
+          min-height: 3.1rem;
+          padding: 0.68rem 0.8rem;
+          border-radius: 0.85rem;
+        }
+
+        .rich-editor-content:focus {
+          border-color: #1a1a40;
+          box-shadow: 0 0 0 2px rgba(26, 26, 64, 0.12);
+        }
+
+        .rich-editor-content:empty:before {
+          content: attr(data-placeholder);
+          color: #94a3b8;
+          font-weight: 500;
+        }
+
+        .rich-editor-content p {
+          margin: 0 0 0.7rem 0;
+        }
+
+        .rich-editor-content ul,
+        .rich-editor-content ol {
+          margin: 0.35rem 0 0.8rem 1.15rem;
+          padding-left: 0.9rem;
+        }
+
+        .rich-editor-content li {
+          margin: 0.2rem 0;
+        }
+
+        .rich-editor-content blockquote {
+          margin: 0.4rem 0;
+          padding-left: 0.9rem;
+          border-left: 3px solid #cbd5e1;
+          color: #475569;
+        }
+
+        .rich-editor-content--empty {
+          border-style: dashed;
+          background: linear-gradient(180deg, #fffaf1 0%, #f8fbff 100%);
+        }
+      `}</style>
+      </div>
     </div>
   );
 }
