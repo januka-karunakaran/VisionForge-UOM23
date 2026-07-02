@@ -93,7 +93,9 @@ public class AuthSecurityConfig {
                 "http://10.208.190.32:*",
                 "https://10.208.190.32:*",
                 "https://*.vercel.app",
-                "https://visionforge-uom23.vercel.app"
+                "https://visionforge-uom23.vercel.app",
+                "https://crms-frontend-nine.vercel.app",
+                "https://crms-frontend.vercel.app"
         ));
 
         config.setAllowedMethods(List.of(
