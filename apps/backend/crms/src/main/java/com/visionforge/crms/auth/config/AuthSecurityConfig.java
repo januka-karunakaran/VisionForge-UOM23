@@ -91,7 +91,9 @@ public class AuthSecurityConfig {
                 "https://localhost:*",
                 "https://127.0.0.1:*",
                 "http://10.208.190.32:*",
-                "https://10.208.190.32:*"
+                "https://10.208.190.32:*",
+                "https://*.vercel.app",
+                "https://visionforge-uom23.vercel.app"
         ));
 
         config.setAllowedMethods(List.of(
