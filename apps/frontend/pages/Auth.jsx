@@ -109,7 +109,7 @@ const Auth = ({ onLogin }) => {
     setError("");
     setSuccess("");
     try {
-      const res = await fetch(`${API_BASE}/api/auth/google`, {
+      const res = await fetch(`${API_BASE}/auth/google`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ idToken: credential, role: roleOverride }),
@@ -133,7 +133,7 @@ const Auth = ({ onLogin }) => {
     setSuccess("");
     try {
       // Send WITHOUT role first → backend checks if user already exists
-      const res = await fetch(`${API_BASE}/api/auth/google`, {
+      const res = await fetch(`${API_BASE}/auth/google`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ idToken: response.credential }),
@@ -221,7 +221,7 @@ const Auth = ({ onLogin }) => {
       return;
     }
     try {
-      const response = await fetch(`${API_BASE}/api/auth/login`, {
+      const response = await fetch(`${API_BASE}/auth/login`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -261,7 +261,7 @@ const Auth = ({ onLogin }) => {
       return;
     }
     try {
-      const response = await fetch(`${API_BASE}/api/auth/register`, {
+      const response = await fetch(`${API_BASE}/auth/register`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -305,7 +305,7 @@ const Auth = ({ onLogin }) => {
       return;
     }
     try {
-      const response = await fetch(`${API_BASE}/api/auth/verify-otp`, {
+      const response = await fetch(`${API_BASE}/auth/verify-otp`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -338,7 +338,7 @@ const Auth = ({ onLogin }) => {
       return;
     }
     try {
-      const response = await fetch(`${API_BASE}/api/auth/forgot-password`, {
+      const response = await fetch(`${API_BASE}/auth/forgot-password`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ email: forgotEmail.trim() }),
