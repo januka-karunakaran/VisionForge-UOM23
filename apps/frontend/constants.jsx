@@ -1,7 +1,8 @@
 import React from "react";
 
 // API base used by frontend to talk to Spring Boot backend
-export const API_BASE = "http://localhost:8080";
+export const API_BASE =
+  process.env.NEXT_PUBLIC_API_BASE || "http://localhost:8080";
 
 export const CR_API_BASE =
   process.env.NEXT_PUBLIC_CR_API_BASE ||
