@@ -32,6 +32,7 @@ hs_err_pid*.log
 # local env files
 .env*.local
 .env
+application-local.properties
 
 # vercel
 .vercel
