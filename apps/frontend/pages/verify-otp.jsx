@@ -2,7 +2,6 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { API_BASE } from "../services/http";
 
 export default function VerifyOTP() {
   const router = useRouter();
@@ -13,7 +12,7 @@ export default function VerifyOTP() {
 
   const handleVerify = async () => {
     try {
-      const res = await fetch(`${API_BASE}/auth/verify-otp`, {
+      const res = await fetch("http://localhost:8080/api/auth/verify-otp", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
