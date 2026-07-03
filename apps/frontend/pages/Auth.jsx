@@ -41,6 +41,18 @@ const Auth = ({ onLogin }) => {
   const loginBtnRef = useRef(null);
   const signupBtnRef = useRef(null);
 
+  // Wake up Render free-tier backend on mount so it's ready when user logs in
+  useEffect(() => {
+    const wake = async () => {
+      try {
+        await fetch(`${API_BASE}/api/auth/ping`, { method: "GET", signal: AbortSignal.timeout(10000) });
+      } catch {
+        // Silently ignore — just a best-effort warm-up
+      }
+    };
+    wake();
+  }, []);
+
   const switchView = (nextView) => {
     setView(nextView);
     setError("");
@@ -109,7 +121,7 @@ const Auth = ({ onLogin }) => {
     setError("");
     setSuccess("");
     try {
-      const res = await fetch(`${API_BASE}/auth/google`, {
+      const res = await fetch(`${API_BASE}/api/auth/google`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ idToken: credential, role: roleOverride }),
@@ -133,7 +145,7 @@ const Auth = ({ onLogin }) => {
     setSuccess("");
     try {
       // Send WITHOUT role first → backend checks if user already exists
-      const res = await fetch(`${API_BASE}/auth/google`, {
+      const res = await fetch(`${API_BASE}/api/auth/google`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ idToken: response.credential }),
@@ -221,7 +233,7 @@ const Auth = ({ onLogin }) => {
       return;
     }
     try {
-      const response = await fetch(`${API_BASE}/auth/login`, {
+      const response = await fetch(`${API_BASE}/api/auth/login`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -234,7 +246,12 @@ const Auth = ({ onLogin }) => {
       setSuccess("Logged in successfully");
       storeSessionAndRedirect(data, loginForm.email.trim());
     } catch (err) {
-      setError(err.message || "Login failed");
+      const msg = err.message || "";
+      if (/Failed to fetch|NetworkError|Load failed/i.test(msg)) {
+        setError("Cannot reach server. The backend may be waking up — please wait 30 seconds and try again.");
+      } else {
+        setError(msg || "Login failed");
+      }
     } finally {
       setLoading(false);
     }
@@ -261,7 +278,7 @@ const Auth = ({ onLogin }) => {
       return;
     }
     try {
-      const response = await fetch(`${API_BASE}/auth/register`, {
+      const response = await fetch(`${API_BASE}/api/auth/register`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
