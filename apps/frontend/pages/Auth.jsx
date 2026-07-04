@@ -9,6 +9,7 @@ import {
 } from "../utils/validators";
 
 const GOOGLE_CLIENT_ID =
+  process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID ||
   "799515143551-e1j9jbunmnj8g6vdgbtfjre9d2bgrbn8.apps.googleusercontent.com";
 
 const normalizeRole = (rawRole) => {
