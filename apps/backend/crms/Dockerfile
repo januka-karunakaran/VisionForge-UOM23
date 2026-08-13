@@ -1,45 +1,28 @@
-# ============================================================
-#  Stage 1 — Build the JAR with Maven
-# ============================================================
-FROM eclipse-temurin:17-jdk-alpine AS builder
-
+# Stage 1: Build the application
+FROM maven:3.9.6-eclipse-temurin-17 AS builder
 WORKDIR /app
 
-# Copy Maven wrapper & POM first (layer cache for dependencies)
-COPY mvnw mvnw.cmd ./
-COPY .mvn .mvn
-COPY pom.xml ./
+# Cache Maven dependencies by copying pom.xml first
+COPY pom.xml .
+RUN mvn dependency:go-offline -B
 
-# Download dependencies (cached unless pom.xml changes)
-RUN chmod +x mvnw && ./mvnw dependency:go-offline -B
-
-# Copy source and build
+# Copy source code and build jar
 COPY src ./src
-RUN ./mvnw package -DskipTests -B
+RUN mvn clean package -DskipTests
 
-# ============================================================
-#  Stage 2 — Minimal runtime image
-# ============================================================
+# Stage 2: Create runtime image
 FROM eclipse-temurin:17-jre-alpine
-
 WORKDIR /app
 
-# Create non-root user for security
-RUN addgroup -S crms && adduser -S crms -G crms
+# Run as non-root user for security
+RUN addgroup -S spring && adduser -S spring -G spring
+USER spring:spring
 
-# Copy the fat JAR from builder stage
+# Copy built JAR from builder stage
 COPY --from=builder /app/target/*.jar app.jar
 
-# Own the app directory
-RUN chown -R crms:crms /app
-USER crms
-
-# Expose Spring Boot default port
+# Expose port 8080
 EXPOSE 8080
 
-# Health check
-HEALTHCHECK --interval=30s --timeout=10s --start-period=60s --retries=3 \
-  CMD wget -q --spider http://localhost:8080/actuator/health || exit 1
-
-# Run the application
-ENTRYPOINT ["java", "-jar", "app.jar"]
+# Run Spring Boot app with JVM optimizations
+ENTRYPOINT ["java", "-XX:+UseG1GC", "-jar", "app.jar"]

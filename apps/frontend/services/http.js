@@ -10,11 +10,7 @@ function normalizeApiBase(value) {
 
 function resolveApiBase() {
   const envBase = normalizeApiBase(process.env.NEXT_PUBLIC_API_BASE);
-  if (envBase) {
-    // Auto-append /api if not already present so service paths like
-    // "/auth/login" route correctly to the Spring Boot /api/auth/login endpoint
-    return envBase.endsWith("/api") ? envBase : `${envBase}/api`;
-  }
+  if (envBase) return envBase;
 
   if (
     typeof window !== "undefined" &&
@@ -31,7 +27,6 @@ function resolveApiBase() {
 }
 
 export const API_BASE = resolveApiBase();
-
 
 // ── Helpers ─────────────────────────────────────────────
 
