@@ -68,11 +68,11 @@ export default function ClientChangePasswordPage() {
   return (
     <div className="mx-auto flex min-h-[calc(100vh-10rem)] w-full max-w-5xl items-center justify-center">
       <div className="w-full max-w-[430px] px-4 py-8 text-center">
-        <h2 className="text-[34px] font-medium tracking-tight text-slate-900">
+        <h2 className="text-[34px] font-medium tracking-tight text-slate-900 dark:text-white">
           Change your password
         </h2>
 
-        <p className="mx-auto mt-5 max-w-[360px] text-[16px] leading-8 text-slate-600">
+        <p className="mx-auto mt-5 max-w-[360px] text-[16px] leading-8 text-slate-600 dark:text-slate-400">
           Enter your current password and a new password below.
         </p>
 
@@ -124,7 +124,7 @@ export default function ClientChangePasswordPage() {
           type="button"
           onClick={handleContinue}
           disabled={loading}
-          className="mt-7 inline-flex h-[58px] w-full max-w-[390px] items-center justify-center rounded-full bg-slate-900 px-6 text-[17px] font-medium text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-60"
+          className="mt-7 inline-flex h-[58px] w-full max-w-[390px] items-center justify-center rounded-full bg-indigo-600 px-6 text-[17px] font-medium text-white transition hover:bg-indigo-700 dark:bg-indigo-600 dark:hover:bg-indigo-500 disabled:cursor-not-allowed disabled:opacity-60"
         >
           {loading ? "Updating..." : "Continue"}
         </button>
@@ -142,22 +142,22 @@ const PasswordField = ({
 }) => {
   return (
     <div className="mx-auto max-w-[390px] text-left">
-      <label className="mb-2 block px-4 text-[13px] font-medium text-blue-600">
+      <label className="mb-2 block px-4 text-[13px] font-medium text-blue-600 dark:text-indigo-400">
         {label}
       </label>
 
-      <div className="flex h-[58px] items-center rounded-full border border-slate-300 bg-white px-5 focus-within:border-blue-500">
+      <div className="flex h-[58px] items-center rounded-full border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-800 px-5 focus-within:border-blue-500 dark:focus-within:border-indigo-500">
         <input
           type={visible ? "text" : "password"}
           value={value}
           onChange={(e) => onChange(e.target.value)}
-          className="flex-1 border-0 bg-transparent text-[15px] text-slate-900 outline-none"
+          className="flex-1 border-0 bg-transparent text-[15px] text-slate-900 dark:text-white outline-none placeholder:text-slate-400 dark:placeholder:text-slate-600"
         />
 
         <button
           type="button"
           onClick={onToggle}
-          className="text-slate-700 hover:text-slate-900"
+          className="text-slate-700 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white"
         >
           {visible ? (
             <EyeOff className="h-6 w-6" />

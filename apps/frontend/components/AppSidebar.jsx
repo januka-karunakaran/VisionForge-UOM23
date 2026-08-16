@@ -67,7 +67,11 @@ export default function AppSidebar({ section = "client" }) {
           profileImage: data?.profileImage || "",
         });
       } catch (error) {
-        console.error("Sidebar profile load error:", error);
+        // Silently ignore auth errors (403/401)
+        const msg = String(error?.message || "");
+        if (!msg.includes("403") && !msg.includes("401") && !msg.includes("Forbidden")) {
+          console.error("Sidebar profile load error:", error);
+        }
       }
     };
 

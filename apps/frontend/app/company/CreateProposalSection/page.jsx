@@ -279,6 +279,21 @@ export default function CreateProposalSectionPage() {
     return days < 1 ? "" : `${days} days`;
   };
 
+  // Today in YYYY-MM-DD (minimum for start date — no past dates)
+  const todayStr = (() => {
+    const d = new Date();
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+  })();
+
+  // Max end date = startDate + 365 days
+  const getMaxEndDate = (startDateStr) => {
+    if (!startDateStr) return "";
+    const d = new Date(startDateStr);
+    if (isNaN(d.getTime())) return "";
+    d.setDate(d.getDate() + 365);
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+  };
+
   const calculateTotal = (qty, unitCost) => {
     if (!qty || !unitCost) return "";
     return String(Number((Number(qty) * Number(unitCost)).toFixed(2)));
@@ -571,10 +586,21 @@ export default function CreateProposalSectionPage() {
                       <input
                         type="date"
                         value={row.startDate}
+                        min={todayStr}
                         onChange={(e) => {
                           const data = [...timelineData];
                           data[idx].startDate = e.target.value;
-                          data[idx].duration = calculateDuration(data[idx].startDate, data[idx].endDate);
+                          // Clear end date if it falls outside [newStart, newStart+365]
+                          if (
+                            data[idx].endDate &&
+                            (data[idx].endDate < e.target.value ||
+                              data[idx].endDate > getMaxEndDate(e.target.value))
+                          ) {
+                            data[idx].endDate = "";
+                            data[idx].duration = "";
+                          } else {
+                            data[idx].duration = calculateDuration(data[idx].startDate, data[idx].endDate);
+                          }
                           setTimelineData(data);
                         }}
                         className="w-full rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm font-semibold outline-none focus:border-indigo-400 focus:ring-2 focus:ring-indigo-100"
@@ -584,6 +610,8 @@ export default function CreateProposalSectionPage() {
                       <input
                         type="date"
                         value={row.endDate}
+                        min={row.startDate || todayStr}
+                        max={getMaxEndDate(row.startDate)}
                         onChange={(e) => {
                           const data = [...timelineData];
                           data[idx].endDate = e.target.value;

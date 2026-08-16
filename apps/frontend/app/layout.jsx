@@ -21,10 +21,10 @@ export default function RootLayout({ children }) {
           href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap"
           rel="stylesheet"
         />
-        <script src="https://cdn.tailwindcss.com"></script>
+
       </head>
       <body
-        style={{ fontFamily: "Inter, sans-serif", backgroundColor: "#f3f4f6" }}
+        style={{ fontFamily: "Inter, sans-serif" }}
       >
         {children}
       </body>

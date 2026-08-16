@@ -38,4 +38,7 @@ public class Proposal {
 
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
+
+    // Reminder automation fields
+    private LocalDateTime reminderEmailSentAt;  // null = reminder not yet sent
 }

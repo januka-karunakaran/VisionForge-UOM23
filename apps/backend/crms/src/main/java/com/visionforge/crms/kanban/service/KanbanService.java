@@ -5,6 +5,8 @@ import com.visionforge.crms.kanban.dto.*;
 import com.visionforge.crms.kanban.model.*;
 import com.visionforge.crms.kanban.repository.KanbanBoardRepository;
 import com.visionforge.crms.kanban.repository.KanbanTaskRepository;
+import com.visionforge.crms.notification.model.NotificationType;
+import com.visionforge.crms.notification.service.NotificationService;
 import com.visionforge.crms.project.model.Project;
 import com.visionforge.crms.project.repository.ProjectRepository;
 import com.visionforge.crms.user.CurrentUserService;
@@ -37,19 +39,22 @@ public class KanbanService {
     private final CurrentUserService currentUserService;
     private final UserRepository userRepository;
     private final ProjectRepository projectRepository;
+    private final NotificationService notificationService;
 
     public KanbanService(KanbanBoardRepository kanbanBoardRepository,
                          KanbanTaskRepository kanbanTaskRepository,
                          GridFsTemplate gridFsTemplate,
                          CurrentUserService currentUserService,
                          UserRepository userRepository,
-                         ProjectRepository projectRepository) {
+                         ProjectRepository projectRepository,
+                         NotificationService notificationService) {
         this.kanbanBoardRepository = kanbanBoardRepository;
         this.kanbanTaskRepository = kanbanTaskRepository;
         this.gridFsTemplate = gridFsTemplate;
         this.currentUserService = currentUserService;
         this.userRepository = userRepository;
         this.projectRepository = projectRepository;
+        this.notificationService = notificationService;
     }
 
     public KanbanBoardResponse getClientProjectKanbanBoard(String projectId) {
@@ -154,6 +159,12 @@ public class KanbanService {
 
         KanbanTask savedTask = kanbanTaskRepository.save(task);
         touchBoard(projectId, board.getTitle());
+
+        // Notify the assignee if one was set
+        if (dto.getAssignedTo() != null && !dto.getAssignedTo().isBlank()) {
+            notifyTaskAssigned(savedTask, dto.getAssignedTo());
+        }
+
         return savedTask;
     }
 
@@ -165,6 +176,8 @@ public class KanbanService {
             throw new RuntimeException("Task does not belong to the provided project");
         }
 
+        String previousAssignee = task.getAssignedTo();
+
         task.setTitle(dto.getTitle());
         task.setDescription(dto.getDescription());
         task.setStatus(dto.getStatus());
@@ -174,6 +187,16 @@ public class KanbanService {
 
         KanbanTask savedTask = kanbanTaskRepository.save(task);
         touchProject(projectId);
+
+        // Notify new assignee only if the assignee actually changed
+        String newAssignee = dto.getAssignedTo();
+        boolean assigneeChanged = newAssignee != null
+                && !newAssignee.isBlank()
+                && !newAssignee.equals(previousAssignee);
+        if (assigneeChanged) {
+            notifyTaskAssigned(savedTask, newAssignee);
+        }
+
         return savedTask;
     }
 
@@ -333,6 +356,40 @@ public class KanbanService {
             board.setUpdatedAt(now);
             kanbanBoardRepository.save(board);
         });
+    }
+
+    /**
+     * Sends a TASK_ASSIGNED notification to the specified assignee.
+     * Includes project name, project ID, and task name in the message.
+     */
+    private void notifyTaskAssigned(KanbanTask task, String assigneeId) {
+        try {
+            String projectId   = task.getProjectId();
+            String taskName    = task.getTitle() != null ? task.getTitle() : "Unnamed Task";
+
+            // Resolve project name from ProjectRepository
+            String projectName = projectRepository.findById(projectId)
+                    .map(Project::getName)
+                    .filter(name -> name != null && !name.isBlank())
+                    .orElse("Your project");
+
+            String title   = "New Task Assigned";
+            String message = "You have been assigned a new task in " + projectName + ".\n"
+                    + "Project: " + projectName + "\n"
+                    + "Project ID: " + projectId + "\n"
+                    + "Task: " + taskName;
+
+            notificationService.createNotification(
+                    assigneeId,
+                    title,
+                    message,
+                    NotificationType.TASK_ASSIGNED,
+                    task.getId(),
+                    "TASK"
+            );
+        } catch (Exception e) {
+            System.err.println("[KanbanService] Failed to send task assignment notification: " + e.getMessage());
+        }
     }
 
     private KanbanBoardResponse mapToResponse(KanbanBoard board, List<KanbanTask> tasks) {

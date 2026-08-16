@@ -218,6 +218,21 @@ export default function CreateProposalSection({
     "0"
   )}-${String(now.getDate()).padStart(2, "0")}`;
 
+  // Maximum allowed start date = today + 365 days
+  const maxDateObj = new Date(now);
+  maxDateObj.setDate(maxDateObj.getDate() + 365);
+  const maxDate = `${maxDateObj.getFullYear()}-${String(maxDateObj.getMonth() + 1).padStart(2, "0")}-${String(maxDateObj.getDate()).padStart(2, "0")}`;
+
+  // Given a start date string, return the max allowed end date (startDate + 365 days)
+  const getMaxEndDate = (startDateStr) => {
+    if (!startDateStr) return maxDate;
+    const start = new Date(startDateStr);
+    if (isNaN(start.getTime())) return maxDate;
+    const maxEnd = new Date(start);
+    maxEnd.setDate(maxEnd.getDate() + 365);
+    return `${maxEnd.getFullYear()}-${String(maxEnd.getMonth() + 1).padStart(2, "0")}-${String(maxEnd.getDate()).padStart(2, "0")}`;
+  };
+
   const [timelineSavedMessage, setTimelineSavedMessage] = useState("");
   const [budgetSavedMessage, setBudgetSavedMessage] = useState("");
 
@@ -590,10 +605,21 @@ export default function CreateProposalSection({
                               onChange={(e) => {
                                 const newData = [...timelineData];
                                 newData[idx].startDate = e.target.value;
-                                newData[idx].duration = calculateDurationInDays(
-                                  newData[idx].startDate,
-                                  newData[idx].endDate
-                                );
+                                // Clear end date if it's now outside the valid range
+                                // [newStartDate, newStartDate + 365 days]
+                                if (
+                                  newData[idx].endDate &&
+                                  (newData[idx].endDate < e.target.value ||
+                                    newData[idx].endDate > getMaxEndDate(e.target.value))
+                                ) {
+                                  newData[idx].endDate = "";
+                                  newData[idx].duration = "";
+                                } else {
+                                  newData[idx].duration = calculateDurationInDays(
+                                    newData[idx].startDate,
+                                    newData[idx].endDate
+                                  );
+                                }
                                 setTimelineData(newData);
                               }}
                               className="w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-sm font-semibold text-slate-700 outline-none transition focus:border-indigo-400 focus:ring-2 focus:ring-indigo-100"
@@ -605,6 +631,7 @@ export default function CreateProposalSection({
                               type="date"
                               value={row.endDate}
                               min={row.startDate || minDate}
+                              max={getMaxEndDate(row.startDate)}
                               onChange={(e) => {
                                 const newData = [...timelineData];
                                 newData[idx].endDate = e.target.value;

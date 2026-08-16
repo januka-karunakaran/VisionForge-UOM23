@@ -61,7 +61,7 @@ const Dashboard = ({ user: initialUser, role: initialRole }) => {
 
   if (loading) {
     return (
-      <div className="p-10 text-xl font-bold text-slate-500">
+      <div className="p-10 text-xl font-bold text-slate-500 dark:text-slate-400">
         Loading dashboard...
       </div>
     );
@@ -105,8 +105,8 @@ const Dashboard = ({ user: initialUser, role: initialRole }) => {
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
 
         {/* LEFT */}
-        <div className="lg:col-span-2 bg-white p-6 rounded-2xl shadow">
-          <h3 className="text-xl font-bold mb-4">
+        <div className="lg:col-span-2 bg-white dark:bg-slate-800 p-6 rounded-2xl shadow dark:shadow-slate-900">
+          <h3 className="text-xl font-bold mb-4 text-slate-900 dark:text-white">
             {isCompany ? "Recent Projects" : "Recent Proposals"}
           </h3>
 
@@ -114,10 +114,10 @@ const Dashboard = ({ user: initialUser, role: initialRole }) => {
             {(isCompany ? dashboardData.recentProjects : (dashboardData.recentProposals || dashboardData.recentProjects) || []).map((item, i) => (
               <div
                 key={i}
-                className="p-4 rounded-xl border hover:bg-gray-50 transition"
+                className="p-4 rounded-xl border border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-700/50 transition"
               >
-                <h4 className="font-bold">{item.name || item.projectName || item.title}</h4>
-                <p className="text-sm text-gray-500">
+                <h4 className="font-bold text-slate-900 dark:text-white">{item.name || item.projectName || item.title}</h4>
+                <p className="text-sm text-gray-500 dark:text-slate-400">
                   {item.description || "No description"}
                 </p>
               </div>
@@ -126,8 +126,8 @@ const Dashboard = ({ user: initialUser, role: initialRole }) => {
         </div>
 
         {/* RIGHT */}
-        <div className="bg-white p-6 rounded-2xl shadow">
-          <h3 className="text-xl font-bold mb-4">Overview</h3>
+        <div className="bg-white dark:bg-slate-800 p-6 rounded-2xl shadow dark:shadow-slate-900">
+          <h3 className="text-xl font-bold mb-4 text-slate-900 dark:text-white">Overview</h3>
 
           <div className="space-y-4">
             <ProgressItem label="Progress" value={dashboardData.progress || 0} />
@@ -144,19 +144,19 @@ const Dashboard = ({ user: initialUser, role: initialRole }) => {
 };
 
 const StatCard = ({ title, value }) => (
-  <div className="bg-white p-6 rounded-2xl shadow hover:shadow-lg transition">
-    <p className="text-gray-500 text-sm">{title}</p>
-    <p className="text-3xl font-black mt-2">{value || 0}</p>
+  <div className="bg-white dark:bg-slate-800 p-6 rounded-2xl shadow hover:shadow-lg transition dark:shadow-slate-900">
+    <p className="text-gray-500 dark:text-slate-400 text-sm">{title}</p>
+    <p className="text-3xl font-black mt-2 text-slate-900 dark:text-white">{value || 0}</p>
   </div>
 );
 
 const ProgressItem = ({ label, value }) => (
   <div>
-    <div className="flex justify-between text-sm font-bold mb-1">
+    <div className="flex justify-between text-sm font-bold mb-1 text-slate-700 dark:text-slate-300">
       <span>{label}</span>
       <span>{value}%</span>
     </div>
-    <div className="w-full bg-gray-200 h-2 rounded-full">
+    <div className="w-full bg-gray-200 dark:bg-slate-700 h-2 rounded-full">
       <div
         className="bg-indigo-600 h-2 rounded-full"
         style={{ width: `${value}%` }}
