@@ -1,7 +1,7 @@
 "use client";
 
-import React, { useEffect, useState } from "react";
-import { Camera, Info, SquareCheckBig, X } from "lucide-react";
+import React, { useEffect, useRef, useState } from "react";
+import { Camera, Info, SquareCheckBig, X, CheckCircle2, AlertCircle, Loader2, User2 } from "lucide-react";
 import {
   getCurrentUserProfile,
   updateCurrentUserProfile,
@@ -10,11 +10,8 @@ import {
 const readFileAsDataUrl = (file) =>
   new Promise((resolve, reject) => {
     const reader = new FileReader();
-
     reader.onload = () => resolve(String(reader.result || ""));
-    reader.onerror = () =>
-      reject(new Error("Failed to read the selected image"));
-
+    reader.onerror = () => reject(new Error("Failed to read the selected image"));
     reader.readAsDataURL(file);
   });
 
@@ -34,16 +31,15 @@ const EditProfileModal = ({ isOpen = true, onClose, userData = null, onSave }) =
   const [saveError, setSaveError] = useState("");
   const [isSaving, setIsSaving] = useState(false);
   const [isLoadingProfile, setIsLoadingProfile] = useState(false);
+  const [saveSuccess, setSaveSuccess] = useState(false);
+  const overlayRef = useRef(null);
 
   const loadProfile = async () => {
     try {
       setIsLoadingProfile(true);
       setSaveError("");
-
       const profile = userData || (await getCurrentUserProfile());
-
       const image = profile?.profileImage || "";
-
       setFormData({
         username:
           profile?.username ||
@@ -56,12 +52,8 @@ const EditProfileModal = ({ isOpen = true, onClose, userData = null, onSave }) =
         email: profile?.email || "",
         profileImage: image,
         previewImage: image,
-        assignedTasks: Array.isArray(profile?.assignedTasks)
-          ? profile.assignedTasks
-          : [],
-        assignedProjects: Array.isArray(profile?.assignedProjects)
-          ? profile.assignedProjects
-          : [],
+        assignedTasks: Array.isArray(profile?.assignedTasks) ? profile.assignedTasks : [],
+        assignedProjects: Array.isArray(profile?.assignedProjects) ? profile.assignedProjects : [],
       });
     } catch (error) {
       console.error("Profile load error:", error);
@@ -75,6 +67,16 @@ const EditProfileModal = ({ isOpen = true, onClose, userData = null, onSave }) =
     if (isOpen) loadProfile();
   }, [isOpen, userData]);
 
+  // Close on Escape key
+  useEffect(() => {
+    if (!isOpen) return;
+    const handleKey = (e) => {
+      if (e.key === "Escape") handleCancel();
+    };
+    document.addEventListener("keydown", handleKey);
+    return () => document.removeEventListener("keydown", handleKey);
+  }, [isOpen]);
+
   if (!isOpen) return null;
 
   const initials =
@@ -86,31 +88,18 @@ const EditProfileModal = ({ isOpen = true, onClose, userData = null, onSave }) =
       .toUpperCase() || "U";
 
   const handleChange = (e) => {
-    setFormData((prev) => ({
-      ...prev,
-      [e.target.name]: e.target.value,
-    }));
-
-    setErrors((prev) => ({
-      ...prev,
-      [e.target.name]: "",
-    }));
-
+    setFormData((prev) => ({ ...prev, [e.target.name]: e.target.value }));
+    setErrors((prev) => ({ ...prev, [e.target.name]: "" }));
     setSaveError("");
+    setSaveSuccess(false);
   };
 
   const handleImageChange = async (event) => {
     const file = event.target.files?.[0];
     if (!file) return;
-
     try {
       const dataUrl = await readFileAsDataUrl(file);
-
-      setFormData((prev) => ({
-        ...prev,
-        profileImage: dataUrl,
-        previewImage: dataUrl,
-      }));
+      setFormData((prev) => ({ ...prev, profileImage: dataUrl, previewImage: dataUrl }));
     } catch (error) {
       console.error("Image read error:", error);
       setSaveError("Failed to read selected image.");
@@ -118,50 +107,39 @@ const EditProfileModal = ({ isOpen = true, onClose, userData = null, onSave }) =
   };
 
   const handleCancel = () => {
-    if (onClose) {
-      onClose();
-    } else {
-      window.history.back();
-    }
+    if (onClose) onClose();
+    else window.history.back();
+  };
+
+  const handleOverlayClick = (e) => {
+    if (e.target === overlayRef.current) handleCancel();
   };
 
   const handleSave = async () => {
     if (!formData.username.trim()) {
-      setErrors({ username: "Name is required" });
+      setErrors({ username: "Display name is required" });
       return;
     }
-
     try {
       setIsSaving(true);
       setSaveError("");
-
+      setSaveSuccess(false);
       const payload = {
         username: formData.username,
         profileImage: formData.profileImage || formData.previewImage || "",
       };
-
       const updatedProfile = onSave
-        ? await onSave({
-            ...userData,
-            ...formData,
-            ...payload,
-          })
+        ? await onSave({ ...userData, ...formData, ...payload })
         : await updateCurrentUserProfile(payload);
 
       if (updatedProfile) {
         setFormData((prev) => ({
           ...prev,
-          username:
-            updatedProfile.username ||
-            updatedProfile.fullName ||
-            updatedProfile.name ||
-            prev.username,
-
+          username: updatedProfile.username || updatedProfile.fullName || updatedProfile.name || prev.username,
           profileImage:
             updatedProfile.profileImage && updatedProfile.profileImage !== ""
               ? updatedProfile.profileImage
               : prev.profileImage,
-
           previewImage:
             updatedProfile.profileImage && updatedProfile.profileImage !== ""
               ? updatedProfile.profileImage
@@ -169,8 +147,11 @@ const EditProfileModal = ({ isOpen = true, onClose, userData = null, onSave }) =
         }));
       }
 
-      alert("Profile updated successfully ✅");
-      handleCancel();
+      setSaveSuccess(true);
+      setTimeout(() => {
+        setSaveSuccess(false);
+        handleCancel();
+      }, 1200);
     } catch (error) {
       console.error("Profile save error:", error);
       setSaveError("Failed to update profile. Please try again.");
@@ -180,271 +161,251 @@ const EditProfileModal = ({ isOpen = true, onClose, userData = null, onSave }) =
   };
 
   return (
-    <div className="fixed inset-0 z-[100] bg-white">
-      <div className="flex h-full w-full flex-col bg-white">
-        <div className="border-b border-slate-200 bg-white">
-          <div className="mx-auto flex w-full max-w-[1180px] items-start justify-between gap-4 px-6 py-5 sm:px-8">
-            <div>
-              <p className="text-sm font-medium text-slate-500">People</p>
-              <h2 className="mt-1 text-[34px] font-semibold tracking-tight text-slate-950">
-                Edit profile
-              </h2>
-              <p className="mt-2 text-sm text-slate-500">
-                Keep your profile clean and your recent work easy to scan.
+    <div
+      ref={overlayRef}
+      onClick={handleOverlayClick}
+      className="fixed inset-0 z-[100] flex items-center justify-center bg-black/50 backdrop-blur-sm p-4"
+      style={{ animation: "fadeIn 0.2s ease" }}
+    >
+      <div
+        className="relative w-full max-w-2xl max-h-[90vh] flex flex-col rounded-2xl border border-slate-200 bg-white shadow-[0_32px_80px_rgba(15,23,42,0.22)] overflow-hidden dark:border-slate-700 dark:bg-slate-900"
+        style={{ animation: "slideUp 0.25s ease" }}
+      >
+        {/* Header */}
+        <div className="flex items-center justify-between border-b border-slate-200 px-6 py-4 dark:border-slate-700">
+          <div>
+            <p className="text-[11px] font-semibold uppercase tracking-widest text-indigo-500 dark:text-indigo-400">
+              Account
+            </p>
+            <h2 className="mt-0.5 text-[22px] font-bold tracking-tight text-slate-900 dark:text-white">
+              Edit Profile
+            </h2>
+          </div>
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={handleCancel}
+              className="inline-flex h-9 items-center justify-center gap-1.5 rounded-lg border border-slate-200 bg-white px-4 text-[13px] font-medium text-slate-600 transition hover:bg-slate-50 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-300 dark:hover:bg-slate-700"
+            >
+              Cancel
+            </button>
+            <button
+              type="button"
+              onClick={handleSave}
+              disabled={isSaving || isLoadingProfile}
+              className={`inline-flex h-9 items-center justify-center gap-2 rounded-lg px-5 text-[13px] font-semibold text-white transition disabled:cursor-not-allowed disabled:opacity-60 ${
+                saveSuccess
+                  ? "bg-emerald-600 hover:bg-emerald-700"
+                  : "bg-indigo-600 hover:bg-indigo-700"
+              }`}
+            >
+              {isSaving ? (
+                <><Loader2 size={14} className="animate-spin" /> Saving…</>
+              ) : saveSuccess ? (
+                <><CheckCircle2 size={14} /> Saved!</>
+              ) : (
+                "Save changes"
+              )}
+            </button>
+            <button
+              type="button"
+              onClick={handleCancel}
+              className="flex h-9 w-9 items-center justify-center rounded-lg text-slate-400 transition hover:bg-slate-100 hover:text-slate-600 dark:hover:bg-slate-700 dark:hover:text-slate-300"
+            >
+              <X size={18} />
+            </button>
+          </div>
+        </div>
+
+        {/* Body */}
+        <div className="flex-1 overflow-y-auto">
+          {/* Status banners */}
+          {saveError && (
+            <div className="mx-6 mt-4 flex items-center gap-2 rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700 dark:border-rose-800 dark:bg-rose-950/40 dark:text-rose-400">
+              <AlertCircle size={15} className="shrink-0" />
+              {saveError}
+            </div>
+          )}
+          {isLoadingProfile && (
+            <div className="mx-6 mt-4 flex items-center gap-2 rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-500 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-400">
+              <Loader2 size={14} className="animate-spin shrink-0" />
+              Loading profile…
+            </div>
+          )}
+
+          <div className="grid gap-6 p-6 sm:grid-cols-[auto_1fr]">
+            {/* Avatar column */}
+            <div className="flex flex-col items-center gap-4">
+              <div className="relative group">
+                {formData.previewImage ? (
+                  <img
+                    src={formData.previewImage}
+                    alt="Profile"
+                    className="h-28 w-28 rounded-2xl object-cover shadow-md ring-2 ring-white dark:ring-slate-700"
+                  />
+                ) : (
+                  <div className="flex h-28 w-28 items-center justify-center rounded-2xl bg-gradient-to-br from-indigo-500 to-violet-600 text-[40px] font-bold text-white shadow-md">
+                    {initials}
+                  </div>
+                )}
+                {/* Hover overlay */}
+                <label
+                  className="absolute inset-0 flex cursor-pointer flex-col items-center justify-center gap-1 rounded-2xl bg-black/0 text-white opacity-0 transition-all group-hover:bg-black/45 group-hover:opacity-100"
+                  title="Change profile photo"
+                >
+                  <Camera size={20} />
+                  <span className="text-[11px] font-semibold">Change</span>
+                  <input
+                    type="file"
+                    accept="image/*"
+                    onChange={handleImageChange}
+                    className="hidden"
+                  />
+                </label>
+              </div>
+              <p className="text-[11px] text-slate-400 dark:text-slate-500">
+                Click photo to change
               </p>
             </div>
 
-            <div className="flex gap-3">
-              <button
-                type="button"
-                onClick={handleCancel}
-                className="inline-flex h-10 items-center justify-center border border-slate-300 bg-white px-5 text-sm font-medium text-slate-700 transition hover:bg-slate-50"
-              >
-                Close
-              </button>
+            {/* Form fields */}
+            <div className="space-y-4">
+              {/* Display name */}
+              <div>
+                <label className="mb-1.5 block text-[11px] font-semibold uppercase tracking-widest text-slate-400 dark:text-slate-500">
+                  Display name
+                </label>
+                <input
+                  type="text"
+                  name="username"
+                  value={formData.username}
+                  onChange={handleChange}
+                  placeholder="Your full name"
+                  className={`w-full rounded-xl border px-4 py-2.5 text-[15px] font-medium text-slate-900 outline-none transition placeholder:text-slate-300 focus:ring-2 dark:bg-slate-800 dark:text-white dark:placeholder:text-slate-600 ${
+                    errors.username
+                      ? "border-rose-400 focus:border-rose-400 focus:ring-rose-100 dark:focus:ring-rose-900/40"
+                      : "border-slate-200 focus:border-indigo-400 focus:ring-indigo-100 dark:border-slate-600 dark:focus:border-indigo-500 dark:focus:ring-indigo-900/40"
+                  }`}
+                />
+                {errors.username && (
+                  <p className="mt-1.5 text-xs text-rose-500">{errors.username}</p>
+                )}
+              </div>
 
-              <button
-                type="button"
-                onClick={handleSave}
-                disabled={isSaving || isLoadingProfile}
-                className="inline-flex h-10 items-center justify-center bg-slate-900 px-5 text-sm font-medium text-white transition hover:bg-purple-700 disabled:cursor-not-allowed disabled:opacity-60"
-              >
-                {isSaving ? "Saving..." : "Save"}
-              </button>
+              {/* Read-only fields */}
+              <div className="grid gap-3 sm:grid-cols-2">
+                <ReadOnlyField label="Role" value={formData.role} />
+                <ReadOnlyField label="Email" value={formData.email} />
+              </div>
+              <ReadOnlyField label="User ID" value={formData.userId} mono />
+            </div>
+          </div>
 
-              <button
-                type="button"
-                onClick={handleCancel}
-                className="inline-flex h-10 w-10 items-center justify-center border border-slate-300 bg-white text-slate-700 transition hover:bg-slate-50"
-              >
-                <X size={18} />
-              </button>
+          {/* Activity sections */}
+          <div className="border-t border-slate-100 dark:border-slate-800">
+            <div className="grid gap-0 divide-y divide-slate-100 dark:divide-slate-800 sm:grid-cols-2 sm:divide-x sm:divide-y-0">
+              <ActivitySection
+                title="Recent Tasks"
+                count={formData.assignedTasks.length}
+                items={formData.assignedTasks}
+                emptyText="No tasks assigned yet."
+                renderItem={(task, i) => (
+                  <WorkItem
+                    key={task.id || i}
+                    icon={<SquareCheckBig size={14} />}
+                    title={task.title}
+                    badge={task.status}
+                    sub={task.projectName}
+                  />
+                )}
+              />
+              <ActivitySection
+                title="Assigned Projects"
+                count={formData.assignedProjects.length}
+                items={formData.assignedProjects}
+                emptyText="No projects assigned yet."
+                renderItem={(project, i) => (
+                  <WorkItem
+                    key={project.id || i}
+                    icon={<Info size={14} />}
+                    title={project.name || project.title}
+                    badge={project.status}
+                    sub={project.description}
+                  />
+                )}
+              />
             </div>
           </div>
         </div>
-
-        <div className="flex-1 overflow-y-auto bg-white">
-          <div className="mx-auto grid w-full max-w-[1180px] gap-10 px-6 py-8 sm:px-8 lg:grid-cols-[320px_minmax(0,1fr)]">
-            <section className="space-y-6">
-              <div className="flex flex-col items-start gap-5">
-                <div className="relative">
-                  {formData.previewImage ? (
-                    <img
-                      src={formData.previewImage}
-                      alt="Profile preview"
-                      className="h-28 w-28 rounded-full object-cover shadow-sm"
-                    />
-                  ) : (
-                    <div className="flex h-28 w-28 items-center justify-center rounded-full bg-slate-900 text-[40px] font-semibold text-white shadow-sm">
-                      {initials}
-                    </div>
-                  )}
-
-                  <label
-                    className="absolute bottom-1 right-1 flex h-9 w-9 cursor-pointer items-center justify-center rounded-full border border-slate-200 bg-white text-slate-600 shadow-sm transition hover:bg-slate-50"
-                    title="Change profile image"
-                  >
-                    <Camera size={14} />
-                    <input
-                      type="file"
-                      accept="image/*"
-                      onChange={handleImageChange}
-                      className="hidden"
-                    />
-                  </label>
-                </div>
-
-                {saveError ? (
-                  <div className="w-full border-y border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">
-                    {saveError}
-                  </div>
-                ) : null}
-
-                {isLoadingProfile ? (
-                  <div className="w-full border-y border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-500">
-                    Loading profile...
-                  </div>
-                ) : null}
-
-                <div className="w-full bg-white py-5">
-                  <p className="text-xs font-medium uppercase tracking-[0.14em] text-slate-400">
-                    Profile details
-                  </p>
-
-                  <div className="mt-5 space-y-4">
-                    <FieldCard
-                      label="Display name"
-                      name="username"
-                      value={formData.username}
-                      onChange={handleChange}
-                      error={errors.username}
-                    />
-
-                    <FieldCard
-                      label="Role"
-                      name="role"
-                      value={formData.role}
-                      readOnly
-                    />
-
-                    <FieldCard
-                      label="User ID"
-                      name="userId"
-                      value={formData.userId}
-                      readOnly
-                    />
-
-                    <FieldCard
-                      label="Email"
-                      name="email"
-                      value={formData.email}
-                      readOnly
-                    />
-                  </div>
-                </div>
-              </div>
-            </section>
-
-            <section className="space-y-6 lg:border-l lg:border-slate-200 lg:pl-10">
-              <PanelSection
-                title="Recent work"
-                countLabel={`${formData.assignedTasks.length} tasks`}
-                icon={<Info className="h-3.5 w-3.5" />}
-              >
-                {formData.assignedTasks.length > 0 ? (
-                  <div className="space-y-6">
-                    {formData.assignedTasks.map((task, index) => (
-                      <RecentWorkItem
-                        key={task.id || index}
-                        icon={<SquareCheckBig className="h-4 w-4" />}
-                        title={task.title}
-                        badge={task.status}
-                        projectName={task.projectName}
-                      />
-                    ))}
-                  </div>
-                ) : (
-                  <EmptyState text="No recent work items found." />
-                )}
-              </PanelSection>
-
-              <PanelSection
-                title="Assigned projects"
-                countLabel={`${formData.assignedProjects.length} projects`}
-                icon={<Info className="h-3.5 w-3.5" />}
-              >
-                {formData.assignedProjects.length > 0 ? (
-                  <div className="space-y-6">
-                    {formData.assignedProjects.map((project, index) => (
-                      <RecentWorkItem
-                        key={project.id || index}
-                        icon={<SquareCheckBig className="h-4 w-4" />}
-                        title={project.name || project.title}
-                        badge={project.status}
-                        projectName={project.description}
-                      />
-                    ))}
-                  </div>
-                ) : (
-                  <EmptyState text="No assigned projects found." />
-                )}
-              </PanelSection>
-            </section>
-          </div>
-        </div>
       </div>
+
+      <style jsx global>{`
+        @keyframes fadeIn {
+          from { opacity: 0; }
+          to   { opacity: 1; }
+        }
+        @keyframes slideUp {
+          from { opacity: 0; transform: translateY(20px) scale(0.97); }
+          to   { opacity: 1; transform: translateY(0)   scale(1);    }
+        }
+      `}</style>
     </div>
   );
 };
 
-const FieldCard = ({
-  label,
-  name,
-  value,
-  onChange,
-  readOnly = false,
-  error = "",
-}) => (
-  <div className="pb-4 last:pb-0">
-    <label className="text-xs font-medium uppercase tracking-[0.14em] text-slate-400">
+/* ─── Sub-components ─────────────────────────────────────────────── */
+
+const ReadOnlyField = ({ label, value, mono = false }) => (
+  <div className="rounded-xl border border-slate-100 bg-slate-50 px-4 py-3 dark:border-slate-700 dark:bg-slate-800/60">
+    <p className="mb-0.5 text-[10px] font-semibold uppercase tracking-widest text-slate-400 dark:text-slate-500">
       {label}
-    </label>
-
-    <input
-      type="text"
-      name={name}
-      value={value || ""}
-      onChange={onChange}
-      readOnly={readOnly}
-      className={`mt-2 w-full border-0 bg-transparent px-0 py-0 text-[16px] font-medium outline-none ${
-        readOnly ? "cursor-default text-slate-500" : "text-slate-900"
+    </p>
+    <p
+      className={`truncate text-[14px] font-medium text-slate-600 dark:text-slate-300 ${
+        mono ? "font-mono text-[12px]" : ""
       }`}
-    />
-
-    {error ? <p className="mt-2 text-xs text-red-500">{error}</p> : null}
+    >
+      {value || <span className="text-slate-300 dark:text-slate-600">—</span>}
+    </p>
   </div>
 );
 
-const PanelSection = ({ title, countLabel, description, icon = null, children }) => (
-  <div className="bg-white py-6">
-    <div className="flex items-start justify-between gap-4">
-      <div>
-        <div className="flex items-center gap-2">
-          <h3 className="text-[20px] font-semibold tracking-tight text-slate-950">
-            {title}
-          </h3>
-          {icon ? <span className="text-slate-400">{icon}</span> : null}
-        </div>
-
-        {description ? (
-          <p className="mt-1 text-sm text-slate-500">{description}</p>
-        ) : null}
-      </div>
-
-      <span className="border border-slate-200 bg-slate-100 px-2.5 py-0.5 text-[11px] font-semibold text-slate-600">
-        {countLabel}
+const ActivitySection = ({ title, count, items, emptyText, renderItem }) => (
+  <div className="p-6">
+    <div className="mb-4 flex items-center justify-between">
+      <h3 className="text-[15px] font-semibold text-slate-900 dark:text-white">{title}</h3>
+      <span className="rounded-full border border-slate-200 bg-slate-100 px-2.5 py-0.5 text-[11px] font-bold text-slate-500 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-400">
+        {count}
       </span>
     </div>
-
-    <div className="mt-5">{children}</div>
+    {items.length > 0 ? (
+      <div className="space-y-3">{items.map(renderItem)}</div>
+    ) : (
+      <div className="rounded-xl border border-dashed border-slate-200 bg-slate-50 px-4 py-5 text-center text-[13px] text-slate-400 dark:border-slate-700 dark:bg-slate-800/50 dark:text-slate-500">
+        {emptyText}
+      </div>
+    )}
   </div>
 );
 
-const RecentWorkItem = ({ icon, title, badge, projectName }) => (
-  <div className="py-1">
-    <div className="flex items-start gap-3">
-      <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-slate-100 text-slate-700">
-        {icon}
-      </div>
-
-      <div className="min-w-0 flex-1">
-        <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-          <div className="min-w-0">
-            <p className="truncate text-[16px] font-semibold text-slate-900">
-              {title || "Untitled"}
-            </p>
-
-            {projectName ? (
-              <p className="mt-1 line-clamp-2 text-sm text-slate-500">
-                {projectName}
-              </p>
-            ) : null}
-          </div>
-
-          {badge ? (
-            <span className="inline-flex border border-slate-200 bg-slate-50 px-2.5 py-0.5 text-[10px] font-semibold uppercase tracking-[0.08em] text-slate-600">
-              {String(badge).replaceAll("_", " ")}
-            </span>
-          ) : null}
-        </div>
-      </div>
+const WorkItem = ({ icon, title, badge, sub }) => (
+  <div className="flex items-start gap-2.5 rounded-lg px-3 py-2.5 transition hover:bg-slate-50 dark:hover:bg-slate-800">
+    <span className="mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-indigo-50 text-indigo-500 dark:bg-indigo-950/60 dark:text-indigo-400">
+      {icon}
+    </span>
+    <div className="min-w-0 flex-1">
+      <p className="truncate text-[13px] font-semibold text-slate-900 dark:text-slate-100">
+        {title || "Untitled"}
+      </p>
+      {sub && (
+        <p className="mt-0.5 line-clamp-1 text-[12px] text-slate-400 dark:text-slate-500">{sub}</p>
+      )}
     </div>
-  </div>
-);
-
-const EmptyState = ({ text }) => (
-  <div className="border-y border-dashed border-slate-200 bg-slate-50 px-4 py-5 text-sm text-slate-500">
-    {text}
+    {badge && (
+      <span className="shrink-0 rounded-md border border-slate-200 bg-slate-50 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-slate-500 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-400">
+        {String(badge).replaceAll("_", " ")}
+      </span>
+    )}
   </div>
 );
 

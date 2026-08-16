@@ -104,8 +104,9 @@ public class ProposalService {
         Proposal proposal = proposalRepository.findByIdAndClientId(proposalId, clientId)
                 .orElseThrow(() -> new RuntimeException("Proposal not found for this client"));
 
-        if (proposal.getStatus() != ProposalStatus.PENDING) {
-            throw new RuntimeException("Only pending proposals can be accepted");
+        if (proposal.getStatus() != ProposalStatus.PENDING
+                && proposal.getStatus() != ProposalStatus.OVERDUE) {
+            throw new RuntimeException("Only pending or overdue proposals can be accepted");
         }
 
         proposal.setStatus(ProposalStatus.ACCEPTED);
@@ -132,8 +133,9 @@ public class ProposalService {
         Proposal proposal = proposalRepository.findByIdAndClientId(proposalId, clientId)
                 .orElseThrow(() -> new RuntimeException("Proposal not found for this client"));
 
-        if (proposal.getStatus() != ProposalStatus.PENDING) {
-            throw new RuntimeException("Only pending proposals can be rejected");
+        if (proposal.getStatus() != ProposalStatus.PENDING
+                && proposal.getStatus() != ProposalStatus.OVERDUE) {
+            throw new RuntimeException("Only pending or overdue proposals can be rejected");
         }
 
         String reason = request.getRejectionReason() == null || request.getRejectionReason().isBlank()
@@ -255,6 +257,7 @@ public class ProposalService {
                 .rejectionReason(proposal.getRejectionReason())
                 .createdAt(proposal.getCreatedAt())
                 .updatedAt(proposal.getUpdatedAt())
+                .reminderEmailSentAt(proposal.getReminderEmailSentAt())
                 .build();
     }
 }

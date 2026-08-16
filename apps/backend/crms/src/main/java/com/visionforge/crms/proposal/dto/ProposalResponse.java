@@ -29,4 +29,5 @@ public class ProposalResponse {
     private String rejectionReason;
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
+    private LocalDateTime reminderEmailSentAt;
 }

@@ -5,15 +5,17 @@ import { getClientProposals, getCompanyProposals } from "../services/api";
 import { mergeProposalWithCachedDetails } from "../utils/proposalDetailsCache";
 
 const STATUS_STYLES = {
-  Pending: "bg-amber-50 text-amber-700 border-amber-200",
+  Pending:  "bg-amber-50 text-amber-700 border-amber-200",
   Accepted: "bg-emerald-50 text-emerald-700 border-emerald-200",
   Rejected: "bg-rose-50 text-rose-700 border-rose-200",
+  Overdue:  "bg-orange-50 text-orange-700 border-orange-200",
 };
 
 const normalizeStatus = (rawStatus) => {
   const value = String(rawStatus || "").trim().toUpperCase();
   if (value === "ACCEPTED") return "Accepted";
   if (value === "REJECTED") return "Rejected";
+  if (value === "OVERDUE")  return "Overdue";
   return "Pending";
 };
 

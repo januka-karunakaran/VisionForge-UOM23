@@ -28,7 +28,11 @@ const NotificationToastManager = () => {
           }, 4500);
         }
       } catch (err) {
-        console.error("Notification polling error:", err);
+        // Silently ignore auth errors (403/401) — handled by UserProfileDropdown
+        const msg = String(err?.message || "");
+        if (!msg.includes("403") && !msg.includes("401") && !msg.includes("Forbidden")) {
+          console.error("Notification polling error:", err);
+        }
       }
     };
 

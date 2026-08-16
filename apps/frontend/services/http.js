@@ -67,7 +67,12 @@ export function isRecoverableNetworkError(error) {
 }
 
 function shouldSilenceRecoverablePath(path) {
-  return path === "/company/projects" || path === "/v1/clients/list";
+  return (
+    path === "/company/projects" ||
+    path === "/v1/clients/list" ||
+    path === "/notifications" ||
+    path === "/notifications/unread-count"
+  );
 }
 
 export function getStoredUser() {

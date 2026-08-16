@@ -113,7 +113,19 @@ const UserProfileDropdown = ({ section = "company" }) => {
           : [],
       });
     } catch (error) {
-      console.error("Failed to load current user profile:", error);
+      // If token is expired / invalid → silently redirect to login
+      const msg = String(error?.message || "");
+      if (
+        msg.includes("403") ||
+        msg.includes("401") ||
+        msg.includes("Forbidden") ||
+        msg.includes("Unauthorized")
+      ) {
+        clearSession();
+        router.replace("/login");
+        return;
+      }
+      // Any other error (network etc.) → silently ignore to avoid spam
     }
   };
 
@@ -129,7 +141,8 @@ const UserProfileDropdown = ({ section = "company" }) => {
   useEffect(() => {
     loadProfile();
 
-    const interval = setInterval(loadProfile, 3000);
+    // Poll every 30s (not 3s) — profile rarely changes
+    const interval = setInterval(loadProfile, 30000);
     return () => clearInterval(interval);
   }, []);
 

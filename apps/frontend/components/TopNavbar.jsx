@@ -60,7 +60,11 @@ const TopNavbar = ({
       const data = await getUnreadNotificationCount();
       setNotificationCount(data?.count || 0);
     } catch (error) {
-      console.error("Failed to load unread count:", error);
+      // Silently ignore auth errors (403/401) — redirect handled by UserProfileDropdown
+      const msg = String(error?.message || "");
+      if (!msg.includes("403") && !msg.includes("401") && !msg.includes("Forbidden")) {
+        console.error("Failed to load unread count:", error);
+      }
     }
   };
 
@@ -69,7 +73,11 @@ const TopNavbar = ({
       const data = await getNotifications();
       setNotifications(Array.isArray(data) ? data : []);
     } catch (error) {
-      console.error("Failed to load notifications:", error);
+      // Silently ignore auth errors
+      const msg = String(error?.message || "");
+      if (!msg.includes("403") && !msg.includes("401") && !msg.includes("Forbidden")) {
+        console.error("Failed to load notifications:", error);
+      }
     }
   };
 
